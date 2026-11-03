@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 
 from .documents import DocumentPage, load_document
 from .schemas import PageMap, validate_extracted_item
-from .local_model import LocalQwenClient
+from .gemini_client import GeminiClient
+from .dashboard import generate_dashboard_html
 
 ROOT = Path(__file__).resolve().parents[2]
 PROMPT_DIR = ROOT / "prompts"
@@ -73,14 +74,9 @@ def _env_int(name: str, default: int) -> int:
 class ExtractionPipeline:
     def __init__(self) -> None:
         load_dotenv()
-        model_path = Path(os.getenv("MODEL_PATH", "models/Qwen3.5-0.8B")).expanduser()
-        if not model_path.is_absolute():
-            model_path = ROOT / model_path
-        self.client = LocalQwenClient(
-            model_path=model_path,
-            max_new_tokens=_env_int("MODEL_MAX_NEW_TOKENS", 4096),
-            device_map=os.getenv("MODEL_DEVICE_MAP", "auto"),
-            local_files_only=os.getenv("MODEL_LOCAL_FILES_ONLY", "true").lower() in {"1", "true", "yes"},
+        self.client = GeminiClient(
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+            max_output_tokens=_env_int("GEMINI_MAX_OUTPUT_TOKENS", 4096),
         )
         self.render_dpi = _env_int("RENDER_DPI", 144)
         self.pages_per_call = max(1, _env_int("MAX_PAGES_PER_CALL", 2))
@@ -324,6 +320,15 @@ class ExtractionPipeline:
 
         report_path = output_dir / "medical_report.json"
         audit_path = output_dir / "extraction_audit.json"
+        dashboard_path = output_dir / "dashboard.html"
         _write_json(report_path, final_data)
         _write_json(audit_path, audit_data)
+
+        # Compute relative image path from output_dir to input_path
+        try:
+            rel_image_path = os.path.relpath(input_path, output_dir).replace("\\", "/")
+        except Exception:
+            rel_image_path = f"../input/{input_path.name}"
+
+        generate_dashboard_html(final_data, audit_data, rel_image_path, dashboard_path)
         return report_path, audit_path

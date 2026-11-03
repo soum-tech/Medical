@@ -15,7 +15,8 @@ def main() -> None:
     try:
         pipeline = ExtractionPipeline()
         report_path, audit_path = pipeline.run(args.input, args.output_dir)
-        print(f"Extraction complete.\nReport: {report_path}\nAudit:  {audit_path}")
+        dashboard_path = report_path.parent / "dashboard.html"
+        print(f"Extraction complete.\nReport:    {report_path}\nAudit:     {audit_path}\nDashboard: {dashboard_path}")
     except Exception as exc:
         print(f"Extraction failed: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc

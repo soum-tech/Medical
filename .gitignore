@@ -22,5 +22,5 @@ data/
 *.nii
 *.nii.gz
 
-# Local model weights are large and should not be committed.
+# Legacy local model weights directory (no longer used)
 models/

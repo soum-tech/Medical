@@ -183,11 +183,13 @@ The output directory contains:
 ```text
 output/
 ├── medical_report.json
-└── extraction_audit.json
+├── extraction_audit.json
+└── dashboard.html
 ```
 
 - `medical_report.json`: document map, extracted records, reconciliation observations, and pipeline metadata.
 - `extraction_audit.json`: page-level mapping, verifier findings, retry outcomes, and unresolved items.
+- `dashboard.html`: self-contained interactive side-by-side dashboard with live search, clinical SBAR summary, patient-friendly explanation, and conflict audit viewer.
 
 ## Extraction record format
 

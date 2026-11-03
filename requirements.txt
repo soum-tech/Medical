@@ -1,11 +1,5 @@
-# Install a PyTorch build matching your OS and CUDA setup first if GPU inference is required.
-torch>=2.6.0
-transformers>=5.3.0
-accelerate>=1.0.0
-torchvision>=0.21.0
+google-genai>=2.0.0
 python-dotenv>=1.0.1
 pymupdf>=1.24.0
 Pillow>=10.0.0
 pydantic>=2.7.0
-flash-linear-attention
-causal_conv1d
