@@ -430,11 +430,6 @@ class ExtractionPipeline:
         _write_json(report_path, final_data)
         _write_json(audit_path, audit_data)
 
-        # Compute relative image path from output_dir to input_path
-        try:
-            rel_image_path = os.path.relpath(input_path, output_dir).replace("\\", "/")
-        except Exception:
-            rel_image_path = f"../input/{input_path.name}"
-
-        generate_dashboard_html(final_data, audit_data, rel_image_path, dashboard_path)
+        page_images = [page.image_data_url for page in pages]
+        generate_dashboard_html(final_data, audit_data, page_images, dashboard_path)
         return report_path, audit_path

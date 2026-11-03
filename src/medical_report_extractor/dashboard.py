@@ -8,34 +8,51 @@ from typing import Any
 def generate_dashboard_html(
     report_data: dict[str, Any],
     audit_data: dict[str, Any],
-    input_image_relative_path: str,
+    page_images: list[str],
     output_path: Path,
 ) -> None:
     """Generate a self-contained interactive HTML dashboard for medical report review."""
-    
+
     report_json_str = json.dumps(report_data, ensure_ascii=False)
     audit_json_str = json.dumps(audit_data, ensure_ascii=False)
-    
+
     # Extract high-level summary facts for SBAR and Patient summary
     items = report_data.get("items", [])
     patient_name = "Patient"
     patient_age = "N/A"
     patient_gender = "N/A"
     ef_value = None
-    diagnoses = []
+    diagnoses: list[str] = []
 
     for item in items:
         data = item.get("data", {})
-        if item.get("category") == "patient":
+        cat = item.get("category", "")
+        if cat == "patient":
             patient_name = data.get("name") or patient_name
             patient_age = data.get("age_raw") or data.get("age_numeric") or patient_age
             patient_gender = data.get("gender") or patient_gender
         elif "ejection fraction" in str(data.get("parameter", "")).lower() or "e.f." in str(data.get("parameter_raw", "")).lower():
             ef_value = data.get("value_raw") or data.get("value_numeric")
-        elif item.get("category") == "diagnosis":
-            diag = data.get("diagnosis_name")
-            if diag:
+        elif "diagnosis" in cat or "clinical" in cat:
+            diag = data.get("diagnosis_name") or data.get("finding")
+            if diag and diag not in diagnoses:
                 diagnoses.append(diag)
+
+    # Render image tags (base64 embedded data URLs)
+    if page_images:
+        images_html = "".join(
+            f'<div style="text-align:center; margin-bottom:20px;">'
+            f'<div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600;">PAGE {idx + 1} OF {len(page_images)}</div>'
+            f'<img src="{img_data}" alt="Page {idx + 1}" style="max-width:100%; height:auto; border-radius:6px; box-shadow:0 10px 25px rgba(0,0,0,0.5); border:1px solid #334155;">'
+            f'</div>'
+            for idx, img_data in enumerate(page_images)
+        )
+    else:
+        images_html = (
+            '<div style="padding:40px; color:#94a3b8; text-align:center;">'
+            'No document page image available.'
+            '</div>'
+        )
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -76,8 +93,7 @@ def generate_dashboard_html(
     .workspace {{ display: flex; flex: 1; overflow: hidden; }}
     .pane-doc {{ width: 48%; border-right: 1px solid var(--card-border); display: flex; flex-direction: column; background: #0b1120; }}
     .pane-header {{ padding: 10px 16px; background: #111827; border-bottom: 1px solid var(--card-border); font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: flex; justify-content: space-between; }}
-    .image-container {{ flex: 1; overflow: auto; padding: 16px; display: flex; justify-content: center; align-items: flex-start; }}
-    .image-container img {{ max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid var(--card-border); }}
+    .image-container {{ flex: 1; overflow-y: auto; padding: 16px; }}
 
     .pane-data {{ width: 52%; display: flex; flex-direction: column; overflow: hidden; }}
     .nav-tabs {{ display: flex; background: #111827; border-bottom: 1px solid var(--card-border); padding: 0 16px; }}
@@ -134,10 +150,10 @@ def generate_dashboard_html(
     <div class="pane-doc">
       <div class="pane-header">
         <span>ORIGINAL SOURCE: {report_data.get('source_file_name', 'Input Document')}</span>
-        <span>PAGE VIEWER</span>
+        <span>EMBEDDED PREVIEW</span>
       </div>
       <div class="image-container">
-        <img src="{input_image_relative_path}" alt="Source Document" onerror="this.parentElement.innerHTML='<div style=\\'padding:30px; color:#94a3b8; text-align:center;\\'>Source image preview unavailable.<br><br>Source path: {input_image_relative_path}</div>'">
+        {images_html}
       </div>
     </div>
 
@@ -166,7 +182,7 @@ def generate_dashboard_html(
           <h4>1. Primary Clinical Observations</h4>
           <ul>
             {'<li><strong>Ejection Fraction:</strong> ' + str(ef_value) + '%</li>' if ef_value else ''}
-            {''.join(f'<li><strong>Diagnosis / Finding:</strong> {d}</li>' for d in diagnoses)}
+            {''.join(f'<li><strong>Observation:</strong> {d}</li>' for d in diagnoses)}
           </ul>
           <h4>2. Extracted Diagnostic Scope</h4>
           <p>Extracted {len(items)} clinical parameters and observations across all document sections with strict source grounding.</p>
@@ -298,4 +314,3 @@ def generate_dashboard_html(
 </html>
 """
     output_path.write_text(html_content, encoding="utf-8")
-
