@@ -16,7 +16,8 @@ def generate_dashboard_html(
     report_json_str = json.dumps(report_data, ensure_ascii=False)
     audit_json_str = json.dumps(audit_data, ensure_ascii=False)
 
-    # Extract high-level summary facts for SBAR and Patient summary
+    model_name = report_data.get("pipeline_metadata", {}).get("model", "Local Model")
+    source_name = report_data.get("source_file_name", "Input Document")
     items = report_data.get("items", [])
     patient_name = "Patient"
     patient_age = "N/A"
@@ -294,7 +295,7 @@ def generate_dashboard_html(
       <span>Medical Report Reviewer</span>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-      <span class="badge badge-primary">Model: {report_data.get('pipeline_metadata', {{}}).get('model', 'Local Model')}</span>
+      <span class="badge badge-primary">Model: {model_name}</span>
       <span class="badge badge-success">Audit: Complete</span>
     </div>
   </header>
@@ -302,7 +303,7 @@ def generate_dashboard_html(
   <div class="workspace">
     <div class="pane-doc">
       <div class="pane-header">
-        <span>ORIGINAL SOURCE: {report_data.get('source_file_name', 'Input Document')}</span>
+        <span>ORIGINAL SOURCE: {source_name}</span>
         <span>EMBEDDED PREVIEW</span>
       </div>
       <div class="image-container">
