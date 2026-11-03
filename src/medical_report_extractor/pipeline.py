@@ -29,16 +29,41 @@ def _json_from_text(text: str) -> dict[str, Any]:
     cleaned = text.strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```$", "", cleaned)
+    
+    # 1. Fast path: direct parse
     try:
-        value = json.loads(cleaned)
+        val = json.loads(cleaned)
+        if isinstance(val, dict):
+            return val
     except json.JSONDecodeError:
-        start, end = cleaned.find("{"), cleaned.rfind("}")
-        if start < 0 or end <= start:
-            raise ValueError(f"Model response did not contain a JSON object. Response starts: {text[:300]!r}")
-        value = json.loads(cleaned[start : end + 1])
-    if not isinstance(value, dict):
-        raise ValueError("Expected the model to return a JSON object.")
-    return value
+        pass
+
+    # 2. Extract first valid balanced JSON object using raw_decode
+    decoder = json.JSONDecoder()
+    pos = 0
+    while True:
+        start = cleaned.find("{", pos)
+        if start == -1:
+            break
+        try:
+            val, _ = decoder.raw_decode(cleaned, idx=start)
+            if isinstance(val, dict):
+                return val
+        except json.JSONDecodeError:
+            pass
+        pos = start + 1
+
+    # 3. Fallback: slice between outermost brackets
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            val = json.loads(cleaned[start : end + 1])
+            if isinstance(val, dict):
+                return val
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(f"Model response did not contain a valid JSON object. Response starts: {text[:300]!r}")
 
 
 def _read_prompt(name: str) -> str:
