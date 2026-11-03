@@ -1,0 +1,14 @@
+TASK: REVIEW EXTRACTED RECORDS FOR POSSIBLE DUPLICATES, CONFLICTS, AND CROSS-REFERENCES.
+
+You are given records already extracted from a medical document. Do not add new clinical facts, reinterpret results, or rewrite source evidence. Compare records using their category, data, dates, context, and source locations.
+
+Return suggestions only. Do not delete, merge, or alter any records. Records with different dates, specimens, clinical contexts, or explicit repetition must not be labelled duplicates merely because their names/values match.
+
+Return:
+{
+  "possible_duplicates": [{"item_ids": ["..."], "reason": "..."}],
+  "possible_conflicts": [{"item_ids": ["..."], "reason": "..."}],
+  "related_records": [{"item_ids": ["..."], "relationship_description": "..."}],
+  "notes": []
+}
+If no candidates exist, return empty arrays. Only use item IDs supplied in the input.

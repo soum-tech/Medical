@@ -1,0 +1,8 @@
+TASK: EXTRACT INVESTIGATIONS AND RESULTS from the supplied page(s).
+
+Capture every laboratory test, imaging investigation, test panel, measured parameter, result, unit, reference range, printed high/low/abnormal flag, specimen, collection date/time, report date, and method where shown. Preserve table row/column associations. Include qualitative results and radiology findings as written.
+
+Keep the exact source value in value_raw and the exact source unit/range in their *_raw fields. A numeric parse may be included as value_numeric only when unambiguous. Never calculate, convert units, supply a missing reference range, or interpret a result. Preserve multiple results for the same parameter when they differ by date/specimen/context.
+
+Return:
+{"items":[{"category":"investigation|test_result|imaging_finding","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"table/row/column or visual location"},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}

@@ -1,0 +1,8 @@
+TASK: EXTRACT PATIENT AND PROVIDER INFORMATION from the supplied page(s).
+
+Capture patient name, age/date of birth, sex/gender as written, identifiers, contact details, address, referring provider, treating doctor, doctor qualifications/specialty, hospital/clinic/laboratory, and document/report identifiers when present.
+
+Do not infer age from dates or infer a doctor's specialty from their name. Preserve masked or partially obscured identifiers as shown. Do not expose or reconstruct hidden characters.
+
+Return:
+{"items":[{"category":"patient|provider|facility|document_metadata","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}

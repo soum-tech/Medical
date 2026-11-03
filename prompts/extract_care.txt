@@ -1,0 +1,8 @@
+TASK: EXTRACT PROCEDURES, CARE PLANS AND FOLLOW-UP from the supplied page(s).
+
+Capture procedures, surgeries, interventions, treatment plans explicitly documented, non-medication instructions, referrals, discharge advice, follow-up appointments, monitoring instructions, and dates/timeframes.
+
+Do not create recommendations or infer that a procedure is planned when it is only mentioned as history. Preserve whether an action is completed, planned, proposed, declined, or conditional when stated.
+
+Return:
+{"items":[{"category":"procedure|treatment_plan|care_instruction|referral|recommendation|follow_up","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}

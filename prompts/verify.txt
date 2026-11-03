@@ -1,0 +1,15 @@
+TASK: AUDIT EXTRACTION COMPLETENESS FOR ONE ORIGINAL PAGE.
+
+Compare the original page image and page text with the extracted records supplied for that page. Identify relevant source information that appears to be missing, incorrectly transcribed, attached to the wrong field, or unreadable. Pay particular attention to table headers/rows, units, reference ranges, dates, negation words, medication instructions, and footnotes.
+
+Do not infer or diagnose. A suspected omission must include a short source evidence span and the best extraction category: patient, clinical, investigations, medications, or care. Do not report a missing category unless the source page visibly contains information in that category. Distinguish confirmed omissions from uncertain visual regions.
+
+Return:
+{
+  "page_number": 1,
+  "omissions": [{"category":"patient|clinical|investigations|medications|care", "description":"...", "evidence":"...", "confidence":"high|medium|low"}],
+  "potential_errors": [{"item_id":"...", "description":"...", "evidence":"..."}],
+  "unreadable_or_ambiguous_regions": ["..."],
+  "page_complete": true
+}
+Use only item IDs supplied in the input. If no omission is identified, return an empty omissions array.

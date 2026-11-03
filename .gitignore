@@ -1,0 +1,26 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local medical documents and generated outputs
+input/
+output/
+data/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.nii
+*.nii.gz
+
+# Local model weights are large and should not be committed.
+models/

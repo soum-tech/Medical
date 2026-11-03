@@ -1,0 +1,30 @@
+TASK: MAP ONE PAGE OF A MEDICAL DOCUMENT.
+
+Inspect the supplied page image and any extracted page text. Identify the page/document type and the information sections visibly present. Use only these canonical categories:
+- patient
+- clinical
+- investigations
+- medications
+- care
+- other
+
+Category guidance:
+- patient: patient demographics, identifiers, contact details.
+- clinical: symptoms, history, allergies, diagnoses, examination findings, clinical notes.
+- investigations: laboratory tests, imaging investigations, measurements, results, reference ranges.
+- medications: prescribed or listed medicines and instructions.
+- care: procedures, interventions, treatment plans, advice, discharge instructions, follow-up.
+- other: administrative or relevant content not covered above.
+
+Return this JSON shape:
+{
+  "page_number": <integer>,
+  "document_type": "...",
+  "sections": [
+    {"category": "patient|clinical|investigations|medications|care|other", "description": "...", "region_hint": "..."}
+  ],
+  "unreadable_regions": ["..."],
+  "page_notes": ["..."]
+}
+
+List every relevant section you can identify. If uncertain, include category "other" and explain the uncertainty in page_notes. Do not infer that a section exists merely because it is common in medical reports.
