@@ -1,0 +1,60 @@
+TASK: PROVIDE SEMANTIC CLINICAL INTERPRETATION of extracted medical report data.
+
+You are given a structured JSON containing all extracted items from a medical report. Analyze the data and provide a comprehensive clinical interpretation. You are NOT diagnosing or recommending treatment. You are identifying patterns, flagging abnormalities, and explaining clinical significance based on the extracted values.
+
+For each finding, assess:
+1. Whether measured values fall within, above, or below their stated reference ranges.
+2. The clinical significance of abnormal values in plain medical terminology.
+3. Correlations between related parameters (e.g., low EF with wall motion abnormalities, elevated creatinine with low GFR, anemia markers).
+4. Urgency level: critical (immediate attention), significant (needs clinical review), mild (monitor), or normal.
+
+Return this JSON shape:
+{
+  "report_summary": "A 2-3 sentence overall clinical impression of the report.",
+  "abnormal_values": [
+    {
+      "item_id": "ITEM_XXXXX",
+      "parameter": "...",
+      "value": "...",
+      "reference_range": "...",
+      "status": "high|low|critical_high|critical_low|borderline_high|borderline_low",
+      "significance": "Plain-language explanation of what this means clinically.",
+      "urgency": "critical|significant|mild|normal"
+    }
+  ],
+  "normal_values": [
+    {
+      "item_id": "ITEM_XXXXX",
+      "parameter": "...",
+      "value": "...",
+      "status": "normal",
+      "note": "Brief confirmation that this is within expected range."
+    }
+  ],
+  "clinical_correlations": [
+    {
+      "finding": "Description of the correlation or pattern.",
+      "related_item_ids": ["ITEM_XXXXX", "ITEM_YYYYY"],
+      "significance": "What these related findings suggest together.",
+      "urgency": "critical|significant|mild"
+    }
+  ],
+  "risk_flags": [
+    {
+      "flag": "Short title of the risk or concern.",
+      "description": "Explanation of why this is flagged.",
+      "related_item_ids": ["ITEM_XXXXX"],
+      "urgency": "critical|significant|mild"
+    }
+  ],
+  "patient_alert": "A 2-4 sentence plain-English summary suitable for a patient explaining the key abnormal findings and what they should discuss with their doctor."
+}
+
+Rules:
+1. Use only the data provided. Do not infer diagnoses not supported by the extracted values.
+2. Reference ranges come from the extracted data fields (reference_range_raw). If no range is provided, state that the normal range is not available from the source document.
+3. Do not fabricate reference ranges. If a range is missing, say so.
+4. Preserve the original item_ids from the input for cross-referencing.
+5. Every abnormal value must include its source item_id.
+6. Return valid JSON only.
+

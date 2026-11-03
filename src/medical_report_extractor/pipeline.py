@@ -275,6 +275,32 @@ class ExtractionPipeline:
         result.setdefault("potential_errors", [])
         return result
 
+    def _interpret(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """Stage 6: Semantic clinical interpretation — flag abnormal values, correlations, and risks."""
+        if not items:
+            return {
+                "report_summary": "No extracted records available for interpretation.",
+                "abnormal_values": [],
+                "normal_values": [],
+                "clinical_correlations": [],
+                "risk_flags": [],
+                "patient_alert": "No data was extracted from the document.",
+            }
+        response = self.client.complete(
+            _system_prompt("interpret.txt"),
+            "Interpret the following extracted medical report data. "
+            "Identify abnormal values, clinical correlations, and risk flags.\n"
+            + json.dumps(items, ensure_ascii=False),
+        )
+        result = _json_from_text(response)
+        result.setdefault("report_summary", "")
+        result.setdefault("abnormal_values", [])
+        result.setdefault("normal_values", [])
+        result.setdefault("clinical_correlations", [])
+        result.setdefault("risk_flags", [])
+        result.setdefault("patient_alert", "")
+        return result
+
     def run(self, input_path: str | Path, output_dir: str | Path) -> tuple[Path, Path]:
         input_path = Path(input_path)
         output_dir = Path(output_dir)
@@ -394,12 +420,26 @@ class ExtractionPipeline:
         except Exception as exc:
             reconciliation.setdefault("notes", []).append(f"Final reconciliation unavailable: {exc}")
 
+        # Stage 6: Semantic clinical interpretation.
+        try:
+            interpretation = self._interpret(extracted_items)
+        except Exception as exc:
+            interpretation = {
+                "report_summary": f"Interpretation unavailable: {exc}",
+                "abnormal_values": [],
+                "normal_values": [],
+                "clinical_correlations": [],
+                "risk_flags": [],
+                "patient_alert": "Clinical interpretation could not be generated.",
+            }
+
         final_data = {
             "document_id": document_id,
             "source_file_name": input_path.name,
             "document_map": document_map,
             "items": extracted_items,
             "reconciliation": reconciliation,
+            "interpretation": interpretation,
             "pipeline_metadata": {
                 "page_count": len(pages),
                 "model": self.client.model_name,

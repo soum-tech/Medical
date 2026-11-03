@@ -96,8 +96,8 @@ def generate_dashboard_html(
     .image-container {{ flex: 1; overflow-y: auto; padding: 16px; }}
 
     .pane-data {{ width: 52%; display: flex; flex-direction: column; overflow: hidden; }}
-    .nav-tabs {{ display: flex; background: #111827; border-bottom: 1px solid var(--card-border); padding: 0 16px; }}
-    .nav-tab {{ padding: 12px 18px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }}
+    .nav-tabs {{ display: flex; background: #111827; border-bottom: 1px solid var(--card-border); padding: 0 16px; flex-wrap: wrap; }}
+    .nav-tab {{ padding: 12px 18px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }}
     .nav-tab.active {{ color: var(--primary); border-color: var(--primary); background: var(--primary-dim); }}
     .tab-content {{ flex: 1; overflow-y: auto; padding: 20px; }}
 
@@ -131,6 +131,159 @@ def generate_dashboard_html(
 
     .conflict-box {{ background: rgba(251, 191, 36, 0.08); border: 1px solid var(--warning); border-radius: 8px; padding: 14px; margin-bottom: 12px; }}
     .conflict-title {{ font-weight: 700; color: var(--warning); font-size: 0.85rem; margin-bottom: 4px; }}
+
+    /* Clinical Interpretation Tab Styles */
+    .interp-summary-card {{
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid var(--primary);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }}
+    .interp-summary-card h3 {{
+      color: var(--primary);
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .interp-summary-card p {{
+      color: #cbd5e1;
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }}
+
+    .urgency-badge {{
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }}
+    .urgency-critical {{ background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid #f87171; }}
+    .urgency-significant {{ background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid #fbbf24; }}
+    .urgency-mild {{ background: rgba(253, 224, 71, 0.15); color: #fde047; border: 1px solid #a3a32a; }}
+    .urgency-normal {{ background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid #34d399; }}
+
+    .abnormal-card {{
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-left: 4px solid;
+      transition: transform 0.1s;
+    }}
+    .abnormal-card:hover {{ transform: translateX(4px); }}
+    .abnormal-card.border-critical {{ border-left-color: #f87171; }}
+    .abnormal-card.border-significant {{ border-left-color: #fbbf24; }}
+    .abnormal-card.border-mild {{ border-left-color: #fde047; }}
+    .abnormal-card.border-normal {{ border-left-color: #34d399; }}
+
+    .abnormal-card .param-name {{ font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 4px; }}
+    .abnormal-card .param-detail {{ font-size: 0.82rem; color: #94a3b8; margin-bottom: 2px; }}
+    .abnormal-card .param-detail strong {{ color: #cbd5e1; }}
+    .abnormal-card .significance {{ font-size: 0.85rem; color: #cbd5e1; margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; line-height: 1.5; }}
+
+    .risk-flag-card {{
+      background: rgba(248, 113, 113, 0.06);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }}
+    .risk-flag-card.risk-significant {{
+      background: rgba(251, 191, 36, 0.06);
+      border-color: rgba(251, 191, 36, 0.3);
+    }}
+    .risk-flag-card.risk-mild {{
+      background: rgba(253, 224, 71, 0.06);
+      border-color: rgba(253, 224, 71, 0.2);
+    }}
+    .risk-flag-card .flag-title {{ font-weight: 700; font-size: 0.9rem; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }}
+    .risk-flag-card .flag-desc {{ font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; }}
+
+    .correlation-card {{
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }}
+    .correlation-card .corr-title {{ font-weight: 600; font-size: 0.9rem; color: #fff; margin-bottom: 6px; }}
+    .correlation-card .corr-sig {{ font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; }}
+    .correlation-card .corr-ids {{ font-size: 0.75rem; color: var(--text-muted); font-family: monospace; margin-top: 6px; }}
+
+    .patient-alert-box {{
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(52, 211, 153, 0.08) 100%);
+      border: 1px solid var(--primary);
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+    }}
+    .patient-alert-box h3 {{
+      color: var(--primary);
+      font-size: 1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .patient-alert-box p {{
+      color: #e2e8f0;
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }}
+
+    .section-header {{
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      margin: 20px 0 12px 0;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .section-header .count-badge {{
+      background: var(--primary-dim);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }}
+
+    .normal-values-toggle {{
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--success);
+      transition: background 0.15s;
+    }}
+    .normal-values-toggle:hover {{ background: rgba(52, 211, 153, 0.15); }}
+    .normal-values-list {{ display: none; margin-top: 10px; }}
+    .normal-values-list.expanded {{ display: block; }}
+    .normal-value-row {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }}
+    .normal-value-row:last-child {{ border-bottom: none; }}
+    .normal-value-row .nv-param {{ color: #cbd5e1; font-weight: 600; }}
+    .normal-value-row .nv-val {{ color: var(--success); }}
+    .normal-value-row .nv-note {{ color: var(--text-muted); font-size: 0.78rem; max-width: 50%; text-align: right; }}
   </style>
 </head>
 <body>
@@ -141,7 +294,7 @@ def generate_dashboard_html(
       <span>Medical Report Reviewer</span>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-      <span class="badge badge-primary">Model: {report_data.get('pipeline_metadata', {}).get('model', 'Local Model')}</span>
+      <span class="badge badge-primary">Model: {report_data.get('pipeline_metadata', {{}}).get('model', 'Local Model')}</span>
       <span class="badge badge-success">Audit: Complete</span>
     </div>
   </header>
@@ -162,7 +315,8 @@ def generate_dashboard_html(
         <div class="nav-tab active" onclick="switchTab('items')">Extracted Records (<span id="count">{len(items)}</span>)</div>
         <div class="nav-tab" onclick="switchTab('clinical')">Physician Clinical Summary</div>
         <div class="nav-tab" onclick="switchTab('patient')">Patient-Friendly Translation</div>
-        <div class="nav-tab" onclick="switchTab('reconciliation')">Reconciliation & Audit</div>
+        <div class="nav-tab" onclick="switchTab('reconciliation')">Reconciliation &amp; Audit</div>
+        <div class="nav-tab" onclick="switchTab('interpretation')">&#128300; Clinical Interpretation</div>
       </div>
 
       <!-- Tab 1: Extracted Items -->
@@ -212,6 +366,11 @@ def generate_dashboard_html(
           <p><strong>Pages Audited:</strong> {len(audit_data.get('page_audits', []))}</p>
         </div>
         <div id="conflictsContainer"></div>
+      </div>
+
+      <!-- Tab 5: Clinical Interpretation -->
+      <div id="tab-interpretation" class="tab-content" style="display:none;">
+        <div id="interpretationContainer"></div>
       </div>
     </div>
   </div>
@@ -290,6 +449,150 @@ def generate_dashboard_html(
       container.innerHTML = html;
     }}
 
+    function renderInterpretation() {{
+      const container = document.getElementById('interpretationContainer');
+      const interp = reportData.interpretation;
+
+      if (!interp) {{
+        container.innerHTML = '<div class="summary-section"><h3>Clinical Interpretation</h3><p style="color:var(--text-muted);">No clinical interpretation data available. Re-run the pipeline to generate semantic analysis.</p></div>';
+        return;
+      }}
+
+      let html = '';
+
+      // Report Summary Card
+      if (interp.report_summary) {{
+        html += `
+          <div class="interp-summary-card">
+            <h3>&#128203; Report Summary</h3>
+            <p>${{interp.report_summary}}</p>
+          </div>
+        `;
+      }}
+
+      // Abnormal Values Section
+      const abnormals = interp.abnormal_values || [];
+      if (abnormals.length > 0) {{
+        html += `<div class="section-header">&#9888;&#65039; Abnormal Values <span class="count-badge">${{abnormals.length}}</span></div>`;
+        abnormals.forEach(av => {{
+          const urgency = (av.urgency || 'mild').toLowerCase();
+          let borderClass = 'border-mild';
+          let urgencyClass = 'urgency-mild';
+          if (urgency === 'critical') {{ borderClass = 'border-critical'; urgencyClass = 'urgency-critical'; }}
+          else if (urgency === 'significant') {{ borderClass = 'border-significant'; urgencyClass = 'urgency-significant'; }}
+          else if (urgency === 'normal') {{ borderClass = 'border-normal'; urgencyClass = 'urgency-normal'; }}
+
+          const status = (av.status || '').replace(/_/g, ' ');
+
+          html += `
+            <div class="abnormal-card ${{borderClass}}">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div class="param-name">${{av.parameter || 'Unknown Parameter'}}</div>
+                <span class="urgency-badge ${{urgencyClass}}">${{urgency}}</span>
+              </div>
+              <div class="param-detail"><strong>Value:</strong> ${{av.value || 'N/A'}} ${{av.reference_range ? '&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Reference:</strong> ' + av.reference_range : ''}}</div>
+              <div class="param-detail"><strong>Status:</strong> ${{status || 'N/A'}} ${{av.item_id ? '&nbsp;&nbsp;|&nbsp;&nbsp;<span style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">' + av.item_id + '</span>' : ''}}</div>
+              ${{av.significance ? `<div class="significance">${{av.significance}}</div>` : ''}}
+            </div>
+          `;
+        }});
+      }}
+
+      // Risk Flags Section
+      const riskFlags = interp.risk_flags || [];
+      if (riskFlags.length > 0) {{
+        html += `<div class="section-header">&#128680; Risk Flags <span class="count-badge">${{riskFlags.length}}</span></div>`;
+        riskFlags.forEach(rf => {{
+          const urgency = (rf.urgency || 'significant').toLowerCase();
+          let riskClass = 'risk-significant';
+          if (urgency === 'critical') riskClass = '';
+          else if (urgency === 'mild') riskClass = 'risk-mild';
+
+          html += `
+            <div class="risk-flag-card ${{riskClass}}">
+              <div class="flag-title">
+                ${{rf.flag || 'Risk Flag'}}
+                <span class="urgency-badge urgency-${{urgency}}">${{urgency}}</span>
+              </div>
+              <div class="flag-desc">${{rf.description || ''}}</div>
+              ${{rf.related_item_ids && rf.related_item_ids.length ? `<div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace; margin-top:8px;">Related: ${{rf.related_item_ids.join(', ')}}</div>` : ''}}
+            </div>
+          `;
+        }});
+      }}
+
+      // Clinical Correlations Section
+      const correlations = interp.clinical_correlations || [];
+      if (correlations.length > 0) {{
+        html += `<div class="section-header">&#128279; Clinical Correlations <span class="count-badge">${{correlations.length}}</span></div>`;
+        correlations.forEach(cc => {{
+          const urgency = (cc.urgency || 'mild').toLowerCase();
+          html += `
+            <div class="correlation-card">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="corr-title">${{cc.finding || 'Correlation'}}</div>
+                <span class="urgency-badge urgency-${{urgency}}">${{urgency}}</span>
+              </div>
+              <div class="corr-sig">${{cc.significance || ''}}</div>
+              ${{cc.related_item_ids && cc.related_item_ids.length ? `<div class="corr-ids">Items: ${{cc.related_item_ids.join(', ')}}</div>` : ''}}
+            </div>
+          `;
+        }});
+      }}
+
+      // Normal Values Section (collapsed by default)
+      const normals = interp.normal_values || [];
+      if (normals.length > 0) {{
+        html += `
+          <div class="section-header">&#9989; Normal Values <span class="count-badge">${{normals.length}}</span></div>
+          <div class="normal-values-toggle" onclick="toggleNormals()">
+            &#9660; Show ${{normals.length}} values within normal range
+          </div>
+          <div id="normalValuesList" class="normal-values-list">
+        `;
+        normals.forEach(nv => {{
+          html += `
+            <div class="normal-value-row">
+              <span class="nv-param">${{nv.parameter || 'Unknown'}}</span>
+              <span class="nv-val">${{nv.value || 'N/A'}}</span>
+              <span class="nv-note">${{nv.note || ''}}</span>
+            </div>
+          `;
+        }});
+        html += '</div>';
+      }}
+
+      // Patient Alert Box
+      if (interp.patient_alert) {{
+        html += `
+          <div class="patient-alert-box">
+            <h3>&#128172; What This Means For You</h3>
+            <p>${{interp.patient_alert}}</p>
+          </div>
+        `;
+      }}
+
+      // Fallback if no content
+      if (!html) {{
+        html = '<div class="summary-section"><h3>Clinical Interpretation</h3><p style="color:var(--text-muted);">The interpretation stage returned no clinical findings.</p></div>';
+      }}
+
+      container.innerHTML = html;
+    }}
+
+    function toggleNormals() {{
+      const list = document.getElementById('normalValuesList');
+      const btn = list.previousElementSibling;
+      if (list.classList.contains('expanded')) {{
+        list.classList.remove('expanded');
+        const count = (reportData.interpretation?.normal_values || []).length;
+        btn.innerHTML = '&#9660; Show ' + count + ' values within normal range';
+      }} else {{
+        list.classList.add('expanded');
+        btn.innerHTML = '&#9650; Hide normal values';
+      }}
+    }}
+
     function filterItems() {{
       const q = document.getElementById('searchBox').value.toLowerCase();
       const filtered = (reportData.items || []).filter(item => {{
@@ -302,13 +605,14 @@ def generate_dashboard_html(
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
       
-      const idx = ['items', 'clinical', 'patient', 'reconciliation'].indexOf(tab);
+      const idx = ['items', 'clinical', 'patient', 'reconciliation', 'interpretation'].indexOf(tab);
       document.querySelectorAll('.nav-tab')[idx].classList.add('active');
       document.getElementById(`tab-${{tab}}`).style.display = 'block';
     }}
 
     renderItems(reportData.items || []);
     renderConflicts();
+    renderInterpretation();
   </script>
 </body>
 </html>
