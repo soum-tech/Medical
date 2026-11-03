@@ -1,5 +1,7 @@
 # Medical Report Extractor
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soum-tech/Medical/blob/main/colab_runner.ipynb)
+
 A lightweight, staged medical-document information extraction pipeline that runs a local vision-language model directly through Hugging Face Transformers.
 
 The project focuses on **faithful extraction**, not medical diagnosis or treatment advice. It uses document mapping, category-specific extraction calls, reconciliation, and a page-wise completeness audit with targeted retries. Prompts remain editable text files outside the Python code.
