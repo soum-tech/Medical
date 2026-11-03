@@ -25,11 +25,67 @@ AGENTS = {
 }
 
 
+def _repair_json_string(s: str) -> str:
+    """Repair common LLM JSON syntax issues (unquoted ranges, double-escaped quotes, trailing commas, unclosed brackets)."""
+    s = s.strip()
+    s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s*```$", "", s)
+
+    # 1. Normalize double-escaped quotes \" -> "
+    s = s.replace(r'\"', '"')
+
+    # 2. Quote unquoted numeric ranges like : 11.0-15.5 or : 13-43.0
+    s = re.sub(r':\s*([0-9]+(?:\.[0-9]+)?\s*-\s*[0-9]+(?:\.[0-9]+)?)(\s*[,}\]])', r': "\1"\2', s)
+    s = re.sub(r':\s*([0-9]+(?:\.[0-9]+)?\s*-\s*[0-9]+(?:\.[0-9]+)?)\s*$', r': "\1"', s)
+
+    # 3. Quote comparison values like : <10 or : >50
+    s = re.sub(r':\s*([<>]=?\s*[0-9]+(?:\.[0-9]+)?)(\s*[,}\]])', r': "\1"\2', s)
+    s = re.sub(r':\s*([<>]=?\s*[0-9]+(?:\.[0-9]+)?)\s*$', r': "\1"', s)
+
+    # 4. Remove trailing dangling commas
+    s = re.sub(r',\s*$', '', s)
+    s = re.sub(r',\s*([}\]])', r'\1', s)
+
+    # 5. Track quote state and bracket stack for graceful repair
+    in_string = False
+    escape = False
+    stack: list[str] = []
+
+    for ch in s:
+        if escape:
+            escape = False
+            continue
+        if ch == '\\':
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if not in_string:
+            if ch == '{':
+                stack.append('}')
+            elif ch == '[':
+                stack.append(']')
+            elif ch in ('}', ']') and stack and stack[-1] == ch:
+                stack.pop()
+
+    if in_string:
+        s += '"'
+
+    s = re.sub(r',\s*$', '', s)
+
+    # 6. Close any open structures in LIFO order
+    while stack:
+        s += stack.pop()
+
+    return s
+
+
 def _json_from_text(text: str) -> dict[str, Any]:
     cleaned = text.strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```$", "", cleaned)
-    
+
     # 1. Fast path: direct parse
     try:
         val = json.loads(cleaned)
@@ -53,14 +109,24 @@ def _json_from_text(text: str) -> dict[str, Any]:
             pass
         pos = start + 1
 
-    # 3. Fallback: slice between outermost brackets
+    # 3. Apply auto-repair (handles unquoted ranges like 11.0-15.5, escaped quotes, truncated brackets)
+    try:
+        repaired = _repair_json_string(cleaned)
+        val = json.loads(repaired)
+        if isinstance(val, dict):
+            return val
+    except Exception:
+        pass
+
+    # 4. Fallback: slice between outermost brackets
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start >= 0 and end > start:
         try:
-            val = json.loads(cleaned[start : end + 1])
+            repaired_slice = _repair_json_string(cleaned[start : end + 1])
+            val = json.loads(repaired_slice)
             if isinstance(val, dict):
                 return val
-        except json.JSONDecodeError:
+        except Exception:
             pass
 
     raise ValueError(f"Model response did not contain a valid JSON object. Response starts: {text[:300]!r}")
