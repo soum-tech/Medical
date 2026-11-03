@@ -1,8 +1,13 @@
 TASK: EXTRACT CLINICAL INFORMATION from the supplied page(s).
 
-Capture symptoms and complaints; onset, duration, frequency and severity as documented; current and past medical history; family and social history; allergies; examination findings; diagnoses and differential diagnoses explicitly written by a clinician; and relevant clinical notes.
+CRITICAL REQUIREMENT:
+Capture symptoms, medical history, examination findings, clinical diagnoses, and clinical notes written by a clinician.
+Do NOT place laboratory test parameters (such as Sodium, Potassium, Chloride, Haemoglobin, Urea, Creatinine) into this category — those belong to investigations.
+Do NOT place patient demographic fields (Age, Sex, RefBy, Date) here — those belong to patient and metadata.
 
-For every diagnosis, preserve whether it is documented as confirmed, suspected, historical, ruled out, or otherwise qualified. Do not create a diagnosis from symptoms or test results. Preserve negated symptoms and findings.
+For each diagnosis or clinical observation:
+- category: "diagnosis" or "clinical_finding" or "symptom"
+- data: {"diagnosis_name": "...", "finding": "...", "certainty": "confirmed|suspected|ruled_out"}
 
 Return:
-{"items":[{"category":"symptom|medical_history|family_history|social_history|allergy|clinical_finding|diagnosis|clinical_note","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}
+{"items":[{"category":"symptom|medical_history|clinical_finding|diagnosis|clinical_note","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted"}],"page_notes":[]}

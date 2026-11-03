@@ -1,8 +1,17 @@
-TASK: EXTRACT INVESTIGATIONS AND RESULTS from the supplied page(s).
+TASK: EXTRACT INVESTIGATIONS AND LAB RESULTS from the supplied page(s).
 
-Capture every laboratory test, imaging investigation, test panel, measured parameter, result, unit, reference range, printed high/low/abnormal flag, specimen, collection date/time, report date, and method where shown. Preserve table row/column associations. Include qualitative results and radiology findings as written.
+CRITICAL REQUIREMENT:
+Each test / lab parameter MUST be extracted as its OWN separate item in the "items" list.
+NEVER combine multiple tests (e.g. Sodium, Potassium, Chloride, Haemoglobin, Urea, Creatinine) into a single object!
+Each row or test in the laboratory report is an individual item.
 
-Keep the exact source value in value_raw and the exact source unit/range in their *_raw fields. A numeric parse may be included as value_numeric only when unambiguous. Never calculate, convert units, supply a missing reference range, or interpret a result. Preserve multiple results for the same parameter when they differ by date/specimen/context.
+For each individual test item, populate "data" with:
+- "parameter": standard name of the test (e.g. "Sodium", "Potassium", "Chloride", "Haemoglobin", "Urea", "Creatinine")
+- "value_raw": exact measured value as printed (e.g. "138", "5.0", "113", "1.46")
+- "value_numeric": numeric value (e.g. 138, 5.0, 113, 1.46)
+- "unit_raw": unit of measurement if printed (e.g. "mmol/L", "mg/dL", "g/dL", "mEq/L")
+- "reference_range_raw": reference / normal range if printed (e.g. "130-145", "3.5-5.0", "95-106")
+- "flag": any printed abnormal flag (e.g. "High", "Low", "*", "H", "L") or null if none
 
 Return:
-{"items":[{"category":"investigation|test_result|imaging_finding","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"table/row/column or visual location"},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}
+{"items":[{"category":"investigation","data":{"parameter":"...","value_raw":"...","value_numeric":...,"unit_raw":"...","reference_range_raw":"...","flag":null},"assertion_status":"present","source":{"page":1,"evidence":"verbatim text from report","region":"lab table"},"extraction_status":"extracted"}],"page_notes":[]}

@@ -143,7 +143,170 @@ def _system_prompt(task_prompt: str) -> str:
     return f"{_read_prompt('shared.txt')}\n\n{_read_prompt(task_prompt)}"
 
 
-def _chunks(items: list[DocumentPage], size: int) -> list[list[DocumentPage]]:
+def _parse_range_bounds(ref_str: str) -> tuple[float | None, float | None]:
+    """Parse reference range string like '130-145', '11.0-15.5', '< 10', '> 50' into (low, high)."""
+    if not ref_str:
+        return None, None
+    s = str(ref_str).strip()
+    # Match standard range: "130-145" or "130 - 145" or "11.0 - 15.5"
+    m = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)$", s)
+    if m:
+        try:
+            return float(m.group(1)), float(m.group(2))
+        except ValueError:
+            return None, None
+    # Match "< X" or "<= X"
+    m_lt = re.match(r"^<=\s*([0-9]+(?:\.[0-9]+)?)$", s) or re.match(r"^<\s*([0-9]+(?:\.[0-9]+)?)$", s)
+    if m_lt:
+        try:
+            return None, float(m_lt.group(1))
+        except ValueError:
+            return None, None
+    # Match "> X" or ">= X"
+    m_gt = re.match(r"^>=\s*([0-9]+(?:\.[0-9]+)?)$", s) or re.match(r"^>\s*([0-9]+(?:\.[0-9]+)?)$", s)
+    if m_gt:
+        try:
+            return float(m_gt.group(1)), None
+        except ValueError:
+            return None, None
+    return None, None
+
+
+def _evaluate_numeric_status(val: float, low: float | None, high: float | None) -> tuple[str, str]:
+    """
+    Deterministically compare numeric value against reference range.
+    Returns (status, urgency):
+      - status: 'normal', 'high', 'low', 'critical_high', 'critical_low'
+      - urgency: 'normal', 'mild', 'significant', 'critical'
+    """
+    if low is not None and high is not None:
+        span = high - low
+        if span <= 0:
+            span = max(abs(low), 1.0)
+
+        if val < low:
+            deficit = low - val
+            if deficit > 0.3 * span:
+                return "critical_low", "critical"
+            elif deficit > 0.1 * span:
+                return "low", "significant"
+            else:
+                return "borderline_low", "mild"
+        elif val > high:
+            surplus = val - high
+            if surplus > 0.3 * span:
+                return "critical_high", "critical"
+            elif surplus > 0.1 * span:
+                return "high", "significant"
+            else:
+                return "borderline_high", "mild"
+        else:
+            return "normal", "normal"
+    elif low is not None:  # e.g., > 50
+        if val < low:
+            return "low", "significant"
+        return "normal", "normal"
+    elif high is not None:  # e.g., < 10
+        if val > high:
+            return "high", "significant"
+        return "normal", "normal"
+
+    return "normal", "normal"
+
+
+def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    If a model put multiple lab parameters or metadata into a single flat dict
+    (e.g., {'Sodium': 138, 'Potassium': 5, 'Sodium Level': '130-145', 'Age': 38, ...}),
+    expand it into distinct individual items so they can be processed cleanly.
+    """
+    NON_LAB_KEYS = {
+        "age", "sex", "gender", "refby", "ref_by", "doctor", "dr", "date", "name",
+        "patient", "b.no", "mrn", "ip", "op", "bno", "bill", "hospital", "lab", "facility",
+        "parameter", "parameter_raw", "value", "value_raw", "value_numeric",
+        "unit", "unit_raw", "reference_range", "reference_range_raw", "flag"
+    }
+
+    expanded: list[dict[str, Any]] = []
+    for item in items:
+        data = item.get("data")
+        if not isinstance(data, dict):
+            expanded.append(item)
+            continue
+
+        # Check if data contains multiple key-value pairs representing tests
+        # e.g., 'Sodium': 138, 'Potassium': 5, 'Chloride': 113
+        test_keys = [
+            k for k in data.keys()
+            if not k.lower().endswith(" level")
+            and not k.lower().endswith(" range")
+            and not k.lower().endswith(" unit")
+            and k.lower() not in NON_LAB_KEYS
+        ]
+
+        # If data only has standard fields or 1 test, leave it
+        if len(test_keys) <= 1:
+            expanded.append(item)
+            continue
+
+        # It's a bundled object. Unpack it!
+        item_id = item.get("item_id", "ITEM_00000")
+        source = item.get("source", {})
+        sub_counter = 1
+
+        for tk in test_keys:
+            val = data[tk]
+            # Look for matching range/level key, e.g. "Sodium Level" or "Sodium Range"
+            ref_range = (
+                data.get(f"{tk} Level")
+                or data.get(f"{tk} level")
+                or data.get(f"{tk} Range")
+                or data.get(f"{tk} range")
+                or data.get(f"{tk} Ref")
+                or ""
+            )
+            unit_val = data.get(f"{tk} Unit") or data.get(f"{tk} unit") or ""
+
+            try:
+                num_val = float(str(val).strip())
+            except (ValueError, TypeError):
+                num_val = None
+
+            new_item = {
+                "item_id": f"{item_id}_{sub_counter}",
+                "category": "investigation",
+                "data": {
+                    "parameter": tk,
+                    "value_raw": str(val),
+                    "value_numeric": num_val,
+                    "unit_raw": str(unit_val),
+                    "reference_range_raw": str(ref_range),
+                    "flag": None,
+                },
+                "assertion_status": "present",
+                "source": source,
+                "extraction_status": "extracted",
+            }
+            expanded.append(new_item)
+            sub_counter += 1
+
+        # Also preserve patient/metadata fields if present
+        meta_data: dict[str, Any] = {}
+        for k, v in data.items():
+            if k.lower() in {"age", "sex", "gender", "refby", "ref_by", "date", "name"}:
+                meta_data[k] = v
+        if meta_data:
+            expanded.append({
+                "item_id": f"{item_id}_meta",
+                "category": "patient",
+                "data": meta_data,
+                "assertion_status": "present",
+                "source": source,
+                "extraction_status": "extracted",
+            })
+
+    return expanded
+
     return [items[i : i + size] for i in range(0, len(items), size)]
 
 
@@ -296,19 +459,134 @@ class ExtractionPipeline:
                 "risk_flags": [],
                 "patient_alert": "No data was extracted from the document.",
             }
-        response = self.client.complete(
-            _system_prompt("interpret.txt"),
-            "Interpret the following extracted medical report data. "
-            "Identify abnormal values, clinical correlations, and risk flags.\n"
-            + json.dumps(items, ensure_ascii=False),
-        )
-        result = _json_from_text(response)
+
+        # 1. First, compute deterministic range checks directly on items with values and reference ranges
+        deterministic_abnormals: list[dict[str, Any]] = []
+        deterministic_normals: list[dict[str, Any]] = []
+        NON_CLINICAL_PARAMS = {"age", "sex", "gender", "refby", "ref_by", "date", "name", "b.no", "mrn"}
+
+        for item in items:
+            data = item.get("data", {})
+            param = str(data.get("parameter") or "").strip()
+            if not param or param.lower() in NON_CLINICAL_PARAMS:
+                continue
+
+            ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or "").strip()
+            val_raw = data.get("value_raw") or data.get("value_numeric")
+            if val_raw is None:
+                continue
+
+            try:
+                num_val = float(str(val_raw).strip())
+            except (ValueError, TypeError):
+                continue
+
+            low, high = _parse_range_bounds(ref_str)
+            if low is None and high is None:
+                continue
+
+            status, urgency = _evaluate_numeric_status(num_val, low, high)
+            unit_str = data.get("unit_raw") or ""
+            val_display = f"{num_val} {unit_str}".strip()
+
+            if status == "normal":
+                deterministic_normals.append({
+                    "item_id": item.get("item_id", ""),
+                    "parameter": param,
+                    "value": val_display,
+                    "reference_range": ref_str,
+                    "status": "normal",
+                    "note": f"Within reference range ({ref_str}).",
+                })
+            else:
+                direction = "high" if "high" in status else "low"
+                sig = f"{param} is {status.replace('_', ' ')} (measured {val_display}, normal range is {ref_str})."
+                deterministic_abnormals.append({
+                    "item_id": item.get("item_id", ""),
+                    "parameter": param,
+                    "value": val_display,
+                    "reference_range": ref_str,
+                    "status": status,
+                    "significance": sig,
+                    "urgency": urgency,
+                })
+
+        # 2. Query model for high-level semantic synthesis (summary, correlations, risks, patient alert)
+        try:
+            response = self.client.complete(
+                _system_prompt("interpret.txt"),
+                "Interpret the following extracted medical report data. "
+                "Identify abnormal values, clinical correlations, and risk flags.\n"
+                + json.dumps(items, ensure_ascii=False),
+            )
+            result = _json_from_text(response)
+        except Exception:
+            result = {}
+
         result.setdefault("report_summary", "")
-        result.setdefault("abnormal_values", [])
-        result.setdefault("normal_values", [])
         result.setdefault("clinical_correlations", [])
         result.setdefault("risk_flags", [])
         result.setdefault("patient_alert", "")
+
+        # 3. Clean up and reconcile abnormal values:
+        # Filter out any non-clinical parameters (Age, Sex, RefBy, Date) that the model mistakenly flagged
+        raw_abnormals = result.get("abnormal_values", [])
+        model_abnormals = []
+        for av in raw_abnormals:
+            p_name = str(av.get("parameter", "")).strip().lower()
+            if not p_name or p_name in NON_CLINICAL_PARAMS:
+                continue
+            # If status is normal, skip it from abnormal list
+            if av.get("status", "").lower() == "normal" or av.get("urgency", "").lower() == "normal":
+                continue
+            model_abnormals.append(av)
+
+        # Merge deterministic calculations with model results
+        # Deterministic math takes priority for status/urgency of numerical values!
+        det_by_param = {a["parameter"].lower(): a for a in deterministic_abnormals}
+        final_abnormals: list[dict[str, Any]] = []
+
+        # Add all verified deterministic abnormals
+        for det_a in deterministic_abnormals:
+            # Check if model gave a more descriptive clinical explanation
+            matching_model = next((m for m in model_abnormals if m.get("parameter", "").lower() == det_a["parameter"].lower()), None)
+            if matching_model and matching_model.get("significance"):
+                det_a["significance"] = matching_model["significance"]
+            final_abnormals.append(det_a)
+
+        # Add any qualitative model abnormals (e.g. imaging, ecg findings) that weren't numerical ranges
+        det_params_lower = {a["parameter"].lower() for a in deterministic_abnormals}
+        for ma in model_abnormals:
+            if ma.get("parameter", "").lower() not in det_params_lower and ma.get("parameter", "").lower() not in {n["parameter"].lower() for n in deterministic_normals}:
+                final_abnormals.append(ma)
+
+        result["abnormal_values"] = final_abnormals
+
+        # Reconcile normal values
+        det_normals_by_param = {n["parameter"].lower(): n for n in deterministic_normals}
+        raw_normals = result.get("normal_values", [])
+        final_normals = list(deterministic_normals)
+        for rn in raw_normals:
+            p_name = str(rn.get("parameter", "")).strip().lower()
+            if p_name and p_name not in NON_CLINICAL_PARAMS and p_name not in det_normals_by_param and p_name not in det_params_lower:
+                final_normals.append(rn)
+        result["normal_values"] = final_normals
+
+        # Fallback patient alert and summary if empty
+        if not result["report_summary"]:
+            if final_abnormals:
+                ab_names = ", ".join(a["parameter"] for a in final_abnormals[:4])
+                result["report_summary"] = f"Diagnostic report indicates out-of-range findings for {ab_names}."
+            else:
+                result["report_summary"] = "All evaluated diagnostic parameters fall within standard reference intervals."
+
+        if not result["patient_alert"]:
+            if final_abnormals:
+                ab_names = ", ".join(a["parameter"] for a in final_abnormals[:3])
+                result["patient_alert"] = f"Your lab results showed abnormal levels for {ab_names}. Please discuss these results with your attending physician to evaluate the necessary next steps."
+            else:
+                result["patient_alert"] = "Your test results are within normal limits. Discuss these findings with your doctor at your next scheduled visit."
+
         return result
 
     def run(self, input_path: str | Path, output_dir: str | Path) -> tuple[Path, Path]:
@@ -415,6 +693,9 @@ class ExtractionPipeline:
                     else:
                         updated_audits.append(audit)
                 audit_pages = updated_audits
+
+        # Ensure any bundled flat objects from local model are unpacked into individual items
+        extracted_items = _expand_flat_items(extracted_items)
 
         # Final validation: preserve questionable records and mark them for review rather than dropping.
         for item in extracted_items:
