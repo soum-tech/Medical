@@ -148,7 +148,17 @@ def _chunks(items: list[DocumentPage], size: int) -> list[list[DocumentPage]]:
 
 
 def _page_categories(page_map: PageMap) -> set[str]:
-    return {section.category for section in page_map.sections if section.category in AGENTS}
+    cats = set()
+    for section in page_map.sections:
+        category = getattr(section, "category", None)
+        if isinstance(category, str) and category in AGENTS:
+            cats.add(category)
+        elif isinstance(category, dict):
+            # Fallback if model returned a nested dict for category
+            cat_name = category.get("category") or category.get("name")
+            if isinstance(cat_name, str) and cat_name in AGENTS:
+                cats.add(cat_name)
+    return cats
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -357,14 +367,17 @@ class ExtractionPipeline:
                 (audit.get("page_number"), omission)
                 for audit in audit_pages
                 for omission in audit.get("omissions", [])
-                if omission.get("category") in AGENTS and omission.get("confidence") in {"high", "medium"}
+                if isinstance(omission, dict) and omission.get("category") in AGENTS and omission.get("confidence") in {"high", "medium"}
             ]
             if not candidates:
                 break
             retried_keys: set[tuple[int, str, str]] = set()
             retry_additions: list[dict[str, Any]] = []
             for page_number, omission in candidates:
-                key = (int(page_number), str(omission.get("category")), str(omission.get("description")))
+                desc = omission.get("description")
+                if isinstance(desc, dict):
+                    desc = json.dumps(desc)
+                key = (int(page_number), str(omission.get("category")), str(desc))
                 if key in retried_keys:
                     continue
                 retried_keys.add(key)
@@ -390,7 +403,7 @@ class ExtractionPipeline:
             extracted_items.extend(retry_additions)
             if retry_additions:
                 # Re-audit pages touched by retries so the audit reflects the updated extraction.
-                touched_pages = {entry["page"] for entry in retry_log if "page" in entry}
+                touched_pages = {int(entry["page"]) for entry in retry_log if "page" in entry and entry.get("page") is not None}
                 updated_audits = []
                 for audit in audit_pages:
                     if audit.get("page_number") in touched_pages:

@@ -18,6 +18,8 @@ def main() -> None:
         dashboard_path = report_path.parent / "dashboard.html"
         print(f"Extraction complete.\nReport:    {report_path}\nAudit:     {audit_path}\nDashboard: {dashboard_path}")
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         print(f"Extraction failed: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
