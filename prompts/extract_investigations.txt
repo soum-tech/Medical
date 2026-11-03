@@ -1,17 +1,16 @@
-TASK: EXTRACT INVESTIGATIONS AND LAB RESULTS from the supplied page(s).
+TASK: EXTRACT INVESTIGATIONS AND DIAGNOSTIC RESULTS from the supplied page(s).
 
-CRITICAL REQUIREMENT:
-Each test / lab parameter MUST be extracted as its OWN separate item in the "items" list.
-NEVER combine multiple tests (e.g. Sodium, Potassium, Chloride, Haemoglobin, Urea, Creatinine) into a single object!
-Each row or test in the laboratory report is an individual item.
-
-For each individual test item, populate "data" with:
-- "parameter": standard name of the test (e.g. "Sodium", "Potassium", "Chloride", "Haemoglobin", "Urea", "Creatinine")
-- "value_raw": exact measured value as printed (e.g. "138", "5.0", "113", "1.46")
-- "value_numeric": numeric value (e.g. 138, 5.0, 113, 1.46)
-- "unit_raw": unit of measurement if printed (e.g. "mmol/L", "mg/dL", "g/dL", "mEq/L")
-- "reference_range_raw": reference / normal range if printed (e.g. "130-145", "3.5-5.0", "95-106")
-- "flag": any printed abnormal flag (e.g. "High", "Low", "*", "H", "L") or null if none
+CRITICAL EXTRACTION REQUIREMENTS:
+1. ATOMIC RECORD PER RESULT: Extract each test, laboratory parameter, diagnostic measurement, or imaging metric as its own individual item in the "items" list. NEVER aggregate or bundle multiple measurements into a single object.
+2. SCOPE: Captures all diagnostic procedures, blood tests, biochemistry, hematology, urinalysis, microbiology, pathology, echocardiography/cardiac metrics (e.g. ejection fraction, chamber dimensions), radiology measurements, and vital signs.
+3. STRUCTURE: For each measurement, populate "data" with:
+   - "parameter": The canonical name of the test or measurement
+   - "value_raw": Exact measured value as printed
+   - "value_numeric": Float or integer value if numerical, otherwise null
+   - "unit_raw": Measurement unit (e.g. mg/dL, mmol/L, %, mm, bpm) or null if unstated
+   - "reference_range_raw": Complete reference/normal interval as printed, or null if unstated
+   - "flag": Printed abnormal flag (e.g. High, Low, Normal, *, H, L) or null
+4. SEPARATION: Do NOT include patient demographics (name, age, sex), medical history, or clinical diagnoses in this category.
 
 Return:
-{"items":[{"category":"investigation","data":{"parameter":"...","value_raw":"...","value_numeric":...,"unit_raw":"...","reference_range_raw":"...","flag":null},"assertion_status":"present","source":{"page":1,"evidence":"verbatim text from report","region":"lab table"},"extraction_status":"extracted"}],"page_notes":[]}
+{"items":[{"category":"investigation","data":{"parameter":"...","value_raw":"...","value_numeric":null,"unit_raw":null,"reference_range_raw":null,"flag":null},"assertion_status":"present","source":{"page":1,"evidence":"verbatim text","region":"..."},"extraction_status":"extracted"}],"page_notes":[]}

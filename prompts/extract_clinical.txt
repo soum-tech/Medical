@@ -1,13 +1,15 @@
 TASK: EXTRACT CLINICAL INFORMATION from the supplied page(s).
 
-CRITICAL REQUIREMENT:
-Capture symptoms, medical history, examination findings, clinical diagnoses, and clinical notes written by a clinician.
-Do NOT place laboratory test parameters (such as Sodium, Potassium, Chloride, Haemoglobin, Urea, Creatinine) into this category — those belong to investigations.
-Do NOT place patient demographic fields (Age, Sex, RefBy, Date) here — those belong to patient and metadata.
-
-For each diagnosis or clinical observation:
-- category: "diagnosis" or "clinical_finding" or "symptom"
-- data: {"diagnosis_name": "...", "finding": "...", "certainty": "confirmed|suspected|ruled_out"}
+CRITICAL EXTRACTION REQUIREMENTS:
+1. SCOPE: Captures patient symptoms, chief complaints, medical history, surgical history, family history, social history, allergies, physical examination observations, clinician findings, diagnoses, and differential diagnoses.
+2. SEPARATION:
+   - Do NOT extract quantitative diagnostic or laboratory tests (which belong to investigations).
+   - Do NOT extract patient administrative metadata or demographics (which belong to patient and metadata).
+3. ATOMIC RECORD: Extract each distinct diagnosis, symptom, or finding as an individual item.
+4. STRUCTURE: For each clinical finding or diagnosis, populate "data" with:
+   - "diagnosis_name": Name of the documented condition, pathology, or diagnosis
+   - "finding": Verbatim clinician note or observation
+   - "certainty": "confirmed" | "suspected" | "historical" | "ruled_out"
 
 Return:
-{"items":[{"category":"symptom|medical_history|clinical_finding|diagnosis|clinical_note","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted"}],"page_notes":[]}
+{"items":[{"category":"symptom|medical_history|clinical_finding|diagnosis|clinical_note","data":{"diagnosis_name":"...","finding":"...","certainty":"confirmed"},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted"}],"page_notes":[]}

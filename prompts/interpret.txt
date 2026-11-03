@@ -1,60 +1,65 @@
-TASK: PROVIDE SEMANTIC CLINICAL INTERPRETATION of extracted medical report data.
+TASK: PROVIDE SEMANTIC CLINICAL INTERPRETATION OF EXTRACTED MEDICAL REPORT DATA.
 
-You are given a structured JSON containing all extracted items from a medical report. Analyze the data and provide a comprehensive clinical interpretation. You are NOT diagnosing or recommending treatment. You are identifying patterns, flagging abnormalities, and explaining clinical significance based on the extracted values.
+You are given structured JSON containing all extracted items from a medical document (laboratory tests, diagnostic imaging, pathology, clinical observations, and vital signs). Analyze the clinical data and provide a comprehensive interpretation. You are NOT diagnosing or recommending treatments, but identifying patterns, clinical significance, and risk considerations faithful to the source document.
 
-For each finding, assess:
-1. Whether measured values fall within, above, or below their stated reference ranges.
-2. The clinical significance of abnormal values in plain medical terminology.
-3. Correlations between related parameters (e.g., low EF with wall motion abnormalities, elevated creatinine with low GFR, anemia markers).
-4. Urgency level: critical (immediate attention), significant (needs clinical review), mild (monitor), or normal.
+EVALUATION CRITERIA:
+1. ONLY evaluate items representing diagnostic parameters, test results, laboratory investigations, vital signs, or clinical findings.
+2. NEVER include patient administrative metadata (such as patient age, gender, doctor name, admission date, or bill number) as abnormal findings.
+3. Compare documented test values against their respective stated reference ranges:
+   - Within normal limits -> list in "normal_values"
+   - Out of range (high, low, critical) -> list in "abnormal_values" with clinical significance
+4. Identify multi-parameter correlations (e.g. renal panels, cardiac biomarkers, electrolyte balance, blood count patterns).
+5. Assign standard urgency levels:
+   - "critical": Marked deviation requiring urgent physician evaluation
+   - "significant": Notable deviation requiring clinical review and follow-up
+   - "mild": Minor or borderline variance for routine monitoring
+   - "normal": Standard physiological baseline
 
-Return this JSON shape:
+Return this exact JSON shape:
 {
-  "report_summary": "A 2-3 sentence overall clinical impression of the report.",
+  "report_summary": "A 2-3 sentence overall clinical impression synthesizing all findings in this document.",
   "abnormal_values": [
     {
       "item_id": "ITEM_XXXXX",
-      "parameter": "...",
-      "value": "...",
-      "reference_range": "...",
+      "parameter": "Parameter or Test Name",
+      "value": "Measured Value",
+      "reference_range": "Normal Reference Interval",
       "status": "high|low|critical_high|critical_low|borderline_high|borderline_low",
-      "significance": "Plain-language explanation of what this means clinically.",
-      "urgency": "critical|significant|mild|normal"
+      "significance": "Clinical significance and physiological context.",
+      "urgency": "critical|significant|mild"
     }
   ],
   "normal_values": [
     {
       "item_id": "ITEM_XXXXX",
-      "parameter": "...",
-      "value": "...",
+      "parameter": "Parameter Name",
+      "value": "Measured Value",
       "status": "normal",
-      "note": "Brief confirmation that this is within expected range."
+      "note": "Confirmation of baseline physiological range."
     }
   ],
   "clinical_correlations": [
     {
-      "finding": "Description of the correlation or pattern.",
+      "finding": "Clinical correlation or pattern across related findings.",
       "related_item_ids": ["ITEM_XXXXX", "ITEM_YYYYY"],
-      "significance": "What these related findings suggest together.",
+      "significance": "Pathophysiological context of these combined observations.",
       "urgency": "critical|significant|mild"
     }
   ],
   "risk_flags": [
     {
-      "flag": "Short title of the risk or concern.",
-      "description": "Explanation of why this is flagged.",
+      "flag": "Concise risk or alert title",
+      "description": "Evidence-grounded rationale for this clinical risk flag.",
       "related_item_ids": ["ITEM_XXXXX"],
       "urgency": "critical|significant|mild"
     }
   ],
-  "patient_alert": "A 2-4 sentence plain-English summary suitable for a patient explaining the key abnormal findings and what they should discuss with their doctor."
+  "patient_alert": "A clear, empathetic 2-4 sentence explanation suitable for a patient describing key findings and recommending physician discussion."
 }
 
 Rules:
-1. Use only the data provided. Do not infer diagnoses not supported by the extracted values.
-2. Reference ranges come from the extracted data fields (reference_range_raw). If no range is provided, state that the normal range is not available from the source document.
-3. Do not fabricate reference ranges. If a range is missing, say so.
-4. Preserve the original item_ids from the input for cross-referencing.
-5. Every abnormal value must include its source item_id.
-6. Return valid JSON only.
+1. Strictly ground all interpretation in the supplied data. Do not invent unstated conditions.
+2. Use reference ranges directly from the document. If no reference interval was reported, state that reference values were not specified.
+3. Preserve the original item_ids for full audit traceability.
+4. Return valid JSON only without markdown or commentary.
 
