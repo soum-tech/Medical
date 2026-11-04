@@ -1,13 +1,8 @@
-TASK: EXTRACT PATIENT DEMOGRAPHICS AND DOCUMENT METADATA from the supplied page(s).
+TASK: EXTRACT PATIENT AND PROVIDER INFORMATION from the supplied page(s).
 
-CRITICAL EXTRACTION REQUIREMENTS:
-1. SCOPE: Captures patient personal information, clinical providers, healthcare facilities, and administrative metadata.
-2. RECORD TYPES:
-   - "patient": "name", "age_raw", "age_numeric", "gender" or "sex", "patient_id" (e.g. MRN, Bill No, National ID, IP/OP number), "dob", "contact"
-   - "provider": "name" (attending doctor, referring physician, surgeon, pathologist, radiologist), "role", "specialty"
-   - "facility": "facility_name" (hospital, clinic, diagnostic center, laboratory name), "address", "department"
-   - "document_metadata": "document_type" (e.g. Lab Report, Discharge Summary, ECG, Echo, Operative Note), "report_date", "collection_date"
-3. SEPARATION: Do NOT extract medical findings, diagnoses, or quantitative lab measurements in this category.
+Capture patient name, age/date of birth, sex/gender as written, identifiers, contact details, address, referring provider, treating doctor, doctor qualifications/specialty, hospital/clinic/laboratory, and document/report identifiers when present.
+
+Do not infer age from dates or infer a doctor's specialty from their name. Preserve masked or partially obscured identifiers as shown. Do not expose or reconstruct hidden characters.
 
 Return:
-{"items":[{"category":"patient|provider|facility|document_metadata","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"header"},"extraction_status":"extracted"}],"page_notes":[]}
+{"items":[{"category":"patient|provider|facility|document_metadata","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}

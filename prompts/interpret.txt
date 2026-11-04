@@ -1,74 +1,33 @@
-TASK: PROVIDE SEMANTIC CLINICAL INTERPRETATION OF EXTRACTED MEDICAL REPORT DATA.
+TASK: INTERPRET EXTRACTED MEDICAL REPORT FINDINGS.
 
-You are given structured JSON containing all extracted items from a medical document (laboratory tests, diagnostic imaging, pathology, clinical observations, and vital signs). Analyze the clinical data and provide a comprehensive, patient-accessible interpretation.
+For each medical test or parameter:
+- "about": Explain what this test measures and its role in the body.
+- "normal_range": Normal reference range.
+- "fetched_value": Measured test value.
+- "classification": Classify as "in_range", "high", or "low".
 
-CRITICAL INSTRUCTIONS:
+Analyze all test results together:
+- "potential_conditions": Suggest possible conditions or diseases to discuss with a physician. Be cautious and do NOT be certain (use phrasing like "possible consideration", "may suggest", "not a definitive diagnosis").
 
-1. ENTITY-BY-ENTITY CLINICAL BREAKDOWN:
-For each extracted test or measurement parameter:
-- "about": Explain what this parameter/analyte is in plain language (its physiological role, what organ or function it reflects in the body).
-- "normal_range": The expected reference interval (from the document or standard clinical reference).
-- "fetched_value": The actual measured/reported value.
-- "classification": Classify the result strictly as "in_range", "high", "low", "critical_high", or "critical_low".
-- "clinical_significance": Explain what this specific result (high, low, or normal) means for the patient.
+Do NOT include patient demographics (age, sex, date, doctor, address) as medical tests or abnormalities.
 
-2. HOLISTIC HEALTH CONSIDERATIONS & POTENTIAL CONDITIONS:
-Analyze ALL extracted values collectively across the entire document. Identify potential health conditions, diseases, or syndromes that could possibly be associated with the observed pattern of results.
-IMPORTANT TONE AND CAUTION RULE:
-- Do NOT make definitive diagnoses.
-- Use prudent, non-certain clinical phrasing (e.g., "Potential consideration to discuss with your doctor", "May suggest a tendency toward...", "Possible association with...").
-- Emphasize that these are possibilities for follow-up evaluation and clinical correlation, NOT certain diagnoses.
-
-3. EXCLUSION RULE:
-Do NOT evaluate administrative metadata (such as patient age, gender, doctor name, report date, or bill number) as diagnostic abnormalities.
-
-Return this exact JSON shape:
+Return JSON:
 {
-  "report_summary": "A 2-3 sentence overall clinical impression synthesizing all findings in this document.",
-  "analyzed_parameters": [
+  "report_summary": "Brief 2-sentence clinical summary.",
+  "parameters": [
     {
-      "item_id": "ITEM_XXXXX",
-      "parameter": "Parameter Name",
-      "about": "Clear explanation of what this test/entity is and what it does in the body.",
-      "fetched_value": "Measured Value with units",
-      "normal_range": "Normal Reference Interval",
-      "classification": "in_range|high|low|critical_high|critical_low",
-      "clinical_significance": "What this specific result suggests in clinical context."
+      "parameter": "Test name",
+      "about": "What this test measures and its function in the body.",
+      "normal_range": "Normal reference range",
+      "fetched_value": "Measured test value",
+      "classification": "in_range|high|low"
     }
   ],
   "potential_conditions": [
     {
-      "condition": "Name of potential condition, disease, or syndrome (e.g., Hyperuricemia / Gout, Renal Impairment, Electrolyte Imbalance)",
-      "associated_findings": ["List of related parameters contributing to this possibility"],
-      "explanation": "Why this combination of findings suggests this potential condition as a topic for medical review.",
-      "caution_note": "A cautious reminder that this is a non-definitive possibility requiring clinical correlation by a doctor, not a confirmed diagnosis."
+      "condition": "Possible condition or disease name",
+      "explanation": "Why this might be considered (cautious, not a confirmed diagnosis)"
     }
   ],
-  "abnormal_values": [
-    {
-      "item_id": "ITEM_XXXXX",
-      "parameter": "Parameter Name",
-      "value": "Measured Value",
-      "reference_range": "Normal Reference Interval",
-      "status": "high|low|critical_high|critical_low|borderline_high|borderline_low",
-      "significance": "Clinical significance explanation.",
-      "urgency": "critical|significant|mild"
-    }
-  ],
-  "normal_values": [
-    {
-      "item_id": "ITEM_XXXXX",
-      "parameter": "Parameter Name",
-      "value": "Measured Value",
-      "status": "normal",
-      "note": "Confirmation of baseline physiological range."
-    }
-  ],
-  "patient_alert": "A clear, empathetic 2-4 sentence summary suitable for a patient explaining what they should discuss with their doctor."
+  "patient_alert": "Brief advice for the patient to discuss with their doctor."
 }
-
-Rules:
-1. Ground all interpretation directly in the supplied data.
-2. Maintain prudent medical caution: suggest possibilities without unwarranted certainty.
-3. Preserve original item_ids for full audit traceability.
-4. Return valid JSON only without markdown or commentary.

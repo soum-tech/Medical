@@ -1,15 +1,8 @@
 TASK: EXTRACT CLINICAL INFORMATION from the supplied page(s).
 
-CRITICAL EXTRACTION REQUIREMENTS:
-1. SCOPE: Captures patient symptoms, chief complaints, medical history, surgical history, family history, social history, allergies, physical examination observations, clinician findings, diagnoses, and differential diagnoses.
-2. SEPARATION:
-   - Do NOT extract quantitative diagnostic or laboratory tests (which belong to investigations).
-   - Do NOT extract patient administrative metadata or demographics (which belong to patient and metadata).
-3. ATOMIC RECORD: Extract each distinct diagnosis, symptom, or finding as an individual item.
-4. STRUCTURE: For each clinical finding or diagnosis, populate "data" with:
-   - "diagnosis_name": Name of the documented condition, pathology, or diagnosis
-   - "finding": Verbatim clinician note or observation
-   - "certainty": "confirmed" | "suspected" | "historical" | "ruled_out"
+Capture symptoms and complaints; onset, duration, frequency and severity as documented; current and past medical history; family and social history; allergies; examination findings; diagnoses and differential diagnoses explicitly written by a clinician; and relevant clinical notes.
+
+For every diagnosis, preserve whether it is documented as confirmed, suspected, historical, ruled out, or otherwise qualified. Do not create a diagnosis from symptoms or test results. Preserve negated symptoms and findings.
 
 Return:
-{"items":[{"category":"symptom|medical_history|clinical_finding|diagnosis|clinical_note","data":{"diagnosis_name":"...","finding":"...","certainty":"confirmed"},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted"}],"page_notes":[]}
+{"items":[{"category":"symptom|medical_history|family_history|social_history|allergy|clinical_finding|diagnosis|clinical_note","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}

@@ -223,6 +223,7 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     NON_LAB_KEYS = {
         "age", "sex", "gender", "refby", "ref_by", "doctor", "dr", "date", "name",
         "patient", "b.no", "mrn", "ip", "op", "bno", "bill", "hospital", "lab", "facility",
+        "contact", "phone", "address", "department", "uhid", "opd", "ipd", "mobile",
         "parameter", "parameter_raw", "value", "value_raw", "value_numeric",
         "unit", "unit_raw", "reference_range", "reference_range_raw", "flag"
     }
@@ -463,9 +464,12 @@ class ExtractionPipeline:
         # 1. First, compute deterministic range checks directly on items with values and reference ranges
         deterministic_abnormals: list[dict[str, Any]] = []
         deterministic_normals: list[dict[str, Any]] = []
-        NON_CLINICAL_PARAMS = {"age", "sex", "gender", "refby", "ref_by", "date", "name", "b.no", "mrn"}
+        NON_CLINICAL_PARAMS = {"age", "sex", "gender", "refby", "ref_by", "date", "name", "b.no", "mrn", "contact", "phone", "address", "department", "uhid", "opd", "ipd", "mobile", "doctor", "dr", "hospital", "facility", "bill", "bno"}
 
         for item in items:
+            cat = str(item.get("category") or "").lower()
+            if cat in {"patient", "provider", "facility", "document_metadata"}:
+                continue
             data = item.get("data", {})
             param = str(data.get("parameter") or "").strip()
             if not param or param.lower() in NON_CLINICAL_PARAMS:
@@ -576,11 +580,15 @@ class ExtractionPipeline:
         result["normal_values"] = final_normals
 
         # 4. Synthesize comprehensive entity-by-entity analyzed_parameters
-        model_analyzed = {str(ap.get("parameter", "")).strip().lower(): ap for ap in result.get("analyzed_parameters", []) if isinstance(ap, dict)}
+        raw_params = result.get("parameters") or result.get("analyzed_parameters") or []
+        model_analyzed = {str(ap.get("parameter", "")).strip().lower(): ap for ap in raw_params if isinstance(ap, dict)}
         final_analyzed_params: list[dict[str, Any]] = []
         seen_analyzed: set[str] = set()
 
         for item in items:
+            cat = str(item.get("category") or "").lower()
+            if cat in {"patient", "provider", "facility", "document_metadata"}:
+                continue
             data = item.get("data", {})
             param = str(data.get("parameter") or "").strip()
             if not param or param.lower() in NON_CLINICAL_PARAMS or param.lower() in seen_analyzed:
@@ -627,7 +635,7 @@ class ExtractionPipeline:
         result["analyzed_parameters"] = final_analyzed_params
 
         # 5. Ensure potential_conditions has prudent, non-certain phrasing and fallback if empty
-        pot_conds = result.get("potential_conditions", [])
+        pot_conds = result.get("potential_conditions") or result.get("possible_conditions") or []
         valid_conds: list[dict[str, Any]] = []
         for pc in pot_conds:
             if isinstance(pc, dict) and pc.get("condition"):

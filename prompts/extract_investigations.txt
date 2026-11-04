@@ -1,16 +1,8 @@
-TASK: EXTRACT INVESTIGATIONS AND DIAGNOSTIC RESULTS from the supplied page(s).
+TASK: EXTRACT INVESTIGATIONS AND RESULTS from the supplied page(s).
 
-CRITICAL EXTRACTION REQUIREMENTS:
-1. ATOMIC RECORD PER RESULT: Extract each test, laboratory parameter, diagnostic measurement, or imaging metric as its own individual item in the "items" list. NEVER aggregate or bundle multiple measurements into a single object.
-2. SCOPE: Captures all diagnostic procedures, blood tests, biochemistry, hematology, urinalysis, microbiology, pathology, echocardiography/cardiac metrics (e.g. ejection fraction, chamber dimensions), radiology measurements, and vital signs.
-3. STRUCTURE: For each measurement, populate "data" with:
-   - "parameter": The canonical name of the test or measurement
-   - "value_raw": Exact measured value as printed
-   - "value_numeric": Float or integer value if numerical, otherwise null
-   - "unit_raw": Measurement unit (e.g. mg/dL, mmol/L, %, mm, bpm) or null if unstated
-   - "reference_range_raw": Complete reference/normal interval as printed, or null if unstated
-   - "flag": Printed abnormal flag (e.g. High, Low, Normal, *, H, L) or null
-4. SEPARATION: Do NOT include patient demographics (name, age, sex), medical history, or clinical diagnoses in this category.
+Capture every laboratory test, imaging investigation, test panel, measured parameter, result, unit, reference range, printed high/low/abnormal flag, specimen, collection date/time, report date, and method where shown. Preserve table row/column associations. Include qualitative results and radiology findings as written.
+
+Keep the exact source value in value_raw and the exact source unit/range in their *_raw fields. A numeric parse may be included as value_numeric only when unambiguous. Never calculate, convert units, supply a missing reference range, or interpret a result. Preserve multiple results for the same parameter when they differ by date/specimen/context.
 
 Return:
-{"items":[{"category":"investigation","data":{"parameter":"...","value_raw":"...","value_numeric":null,"unit_raw":null,"reference_range_raw":null,"flag":null},"assertion_status":"present","source":{"page":1,"evidence":"verbatim text","region":"..."},"extraction_status":"extracted"}],"page_notes":[]}
+{"items":[{"category":"investigation|test_result|imaging_finding","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"table/row/column or visual location"},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}

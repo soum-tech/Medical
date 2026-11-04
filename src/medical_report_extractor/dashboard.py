@@ -566,7 +566,7 @@ def generate_dashboard_html(
       }}
 
       // Potential Health Considerations / Diseases to Discuss (Cautious & Non-Definitive)
-      const potConds = interp.potential_conditions || [];
+      const potConds = interp.potential_conditions || interp.possible_conditions || [];
       if (potConds.length > 0) {{
         html += `
           <div class="section-header">&#129658; Potential Health Considerations to Discuss with Your Doctor <span class="count-badge">${{potConds.length}}</span></div>
@@ -591,7 +591,7 @@ def generate_dashboard_html(
       }}
 
       // Entity-by-Entity Analyzed Parameters Breakdown
-      const analyzed = interp.analyzed_parameters || [];
+      const analyzed = interp.analyzed_parameters || interp.parameters || [];
       if (analyzed.length > 0) {{
         html += `<div class="section-header">&#128202; Test Parameter Breakdown &amp; Classification <span class="count-badge">${{analyzed.length}}</span></div>`;
         analyzed.forEach(ap => {{
