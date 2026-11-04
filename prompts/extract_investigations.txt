@@ -1,8 +1,26 @@
-TASK: EXTRACT INVESTIGATIONS AND RESULTS from the supplied page(s).
+TASK: EXTRACT ALL LABORATORY TESTS AND INVESTIGATIONS from the supplied page(s).
 
-Capture every laboratory test, imaging investigation, test panel, measured parameter, result, unit, reference range, printed high/low/abnormal flag, specimen, collection date/time, report date, and method where shown. Preserve table row/column associations. Include qualitative results and radiology findings as written.
+Look at all tables, sections, and rows on the page. Extract EVERY test and measurement row shown (for example: Haemoglobin, Sodium, Potassium, Chloride, Bicarbonate, Urea, Creatinine, Glucose, Uric Acid, Bilirubin, or any other lab test). Do not stop after one test; extract ALL rows.
 
-Keep the exact source value in value_raw and the exact source unit/range in their *_raw fields. A numeric parse may be included as value_numeric only when unambiguous. Never calculate, convert units, supply a missing reference range, or interpret a result. Preserve multiple results for the same parameter when they differ by date/specimen/context.
+For each test:
+- "parameter": Name of the test
+- "value_raw": Measured result
+- "reference_range_raw": Reference or normal range if shown
+- "unit_raw": Measurement unit if shown
 
 Return:
-{"items":[{"category":"investigation|test_result|imaging_finding","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"table/row/column or visual location"},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}
+{
+  "items": [
+    {
+      "category": "investigation",
+      "data": {
+        "parameter": "Test name",
+        "value_raw": "Measured value",
+        "reference_range_raw": "Reference range",
+        "unit_raw": "Unit"
+      },
+      "source": {"page": 1, "evidence": "verbatim text from report"}
+    }
+  ],
+  "page_notes": []
+}

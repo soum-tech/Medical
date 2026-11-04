@@ -214,22 +214,38 @@ def _evaluate_numeric_status(val: float, low: float | None, high: float | None) 
     return "normal", "normal"
 
 
+DEMOGRAPHIC_PREFIXES = (
+    "age", "sex", "gender", "dob", "birth", "date", "name", "patient", "contact",
+    "phone", "mobile", "address", "doctor", "dr", "ref", "hospital", "lab",
+    "facility", "b.no", "bno", "bill", "mrn", "uhid", "ip", "op", "department"
+)
+
+def _is_demographic_key(key: str) -> bool:
+    kl = str(key).lower().strip()
+    if not kl or kl in {"parameter", "parameter_raw", "value", "value_raw", "value_numeric",
+                       "unit", "unit_raw", "reference_range", "reference_range_raw", "flag"}:
+        return True
+    for prefix in DEMOGRAPHIC_PREFIXES:
+        if kl == prefix or kl.startswith(prefix + "_") or kl.endswith("_" + prefix):
+            return True
+    return False
+
 def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     If a model put multiple lab parameters or metadata into a single flat dict
     (e.g., {'Sodium': 138, 'Potassium': 5, 'Sodium Level': '130-145', 'Age': 38, ...}),
     expand it into distinct individual items so they can be processed cleanly.
     """
-    NON_LAB_KEYS = {
-        "age", "sex", "gender", "refby", "ref_by", "doctor", "dr", "date", "name",
-        "patient", "b.no", "mrn", "ip", "op", "bno", "bill", "hospital", "lab", "facility",
-        "contact", "phone", "address", "department", "uhid", "opd", "ipd", "mobile",
-        "parameter", "parameter_raw", "value", "value_raw", "value_numeric",
-        "unit", "unit_raw", "reference_range", "reference_range_raw", "flag"
-    }
+
 
     expanded: list[dict[str, Any]] = []
     for item in items:
+        cat = str(item.get("category") or "").lower()
+        # NEVER convert patient, provider, facility, or metadata items into investigations!
+        if cat in {"patient", "provider", "facility", "document_metadata"}:
+            expanded.append(item)
+            continue
+
         data = item.get("data")
         if not isinstance(data, dict):
             expanded.append(item)
@@ -242,7 +258,7 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if not k.lower().endswith(" level")
             and not k.lower().endswith(" range")
             and not k.lower().endswith(" unit")
-            and k.lower() not in NON_LAB_KEYS
+            and not _is_demographic_key(k)
         ]
 
         # If data only has standard fields or 1 test, leave it
@@ -472,7 +488,7 @@ class ExtractionPipeline:
                 continue
             data = item.get("data", {})
             param = str(data.get("parameter") or "").strip()
-            if not param or param.lower() in NON_CLINICAL_PARAMS:
+            if not param or _is_demographic_key(param):
                 continue
 
             ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or "").strip()
@@ -541,7 +557,7 @@ class ExtractionPipeline:
         model_abnormals = []
         for av in raw_abnormals:
             p_name = str(av.get("parameter", "")).strip().lower()
-            if not p_name or p_name in NON_CLINICAL_PARAMS:
+            if not p_name or _is_demographic_key(p_name):
                 continue
             # If status is normal, skip it from abnormal list
             if av.get("status", "").lower() == "normal" or av.get("urgency", "").lower() == "normal":
@@ -575,7 +591,7 @@ class ExtractionPipeline:
         final_normals = list(deterministic_normals)
         for rn in raw_normals:
             p_name = str(rn.get("parameter", "")).strip().lower()
-            if p_name and p_name not in NON_CLINICAL_PARAMS and p_name not in det_normals_by_param and p_name not in det_params_lower:
+            if p_name and not _is_demographic_key(p_name) and p_name not in det_normals_by_param and p_name not in det_params_lower:
                 final_normals.append(rn)
         result["normal_values"] = final_normals
 
@@ -591,7 +607,7 @@ class ExtractionPipeline:
                 continue
             data = item.get("data", {})
             param = str(data.get("parameter") or "").strip()
-            if not param or param.lower() in NON_CLINICAL_PARAMS or param.lower() in seen_analyzed:
+            if not param or _is_demographic_key(param) or param.lower() in seen_analyzed:
                 continue
             seen_analyzed.add(param.lower())
 

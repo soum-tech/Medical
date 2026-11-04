@@ -1,8 +1,18 @@
-TASK: EXTRACT CLINICAL INFORMATION from the supplied page(s).
+TASK: EXTRACT CLINICAL FINDINGS AND DIAGNOSES from the supplied page(s).
 
-Capture symptoms and complaints; onset, duration, frequency and severity as documented; current and past medical history; family and social history; allergies; examination findings; diagnoses and differential diagnoses explicitly written by a clinician; and relevant clinical notes.
-
-For every diagnosis, preserve whether it is documented as confirmed, suspected, historical, ruled out, or otherwise qualified. Do not create a diagnosis from symptoms or test results. Preserve negated symptoms and findings.
+Capture documented clinical observations, symptoms, medical history, physical examination findings, and diagnoses explicitly written by the doctor.
+Do not extract patient demographics or contact info here.
 
 Return:
-{"items":[{"category":"symptom|medical_history|family_history|social_history|allergy|clinical_finding|diagnosis|clinical_note","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}
+{
+  "items": [
+    {
+      "category": "clinical_finding",
+      "data": {
+        "finding": "Clinical observation or diagnosis description"
+      },
+      "source": {"page": 1, "evidence": "verbatim text"}
+    }
+  ],
+  "page_notes": []
+}
