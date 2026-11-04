@@ -1,31 +1,57 @@
 TASK: PROVIDE SEMANTIC CLINICAL INTERPRETATION OF EXTRACTED MEDICAL REPORT DATA.
 
-You are given structured JSON containing all extracted items from a medical document (laboratory tests, diagnostic imaging, pathology, clinical observations, and vital signs). Analyze the clinical data and provide a comprehensive interpretation. You are NOT diagnosing or recommending treatments, but identifying patterns, clinical significance, and risk considerations faithful to the source document.
+You are given structured JSON containing all extracted items from a medical document (laboratory tests, diagnostic imaging, pathology, clinical observations, and vital signs). Analyze the clinical data and provide a comprehensive, patient-accessible interpretation.
 
-EVALUATION CRITERIA:
-1. ONLY evaluate items representing diagnostic parameters, test results, laboratory investigations, vital signs, or clinical findings.
-2. NEVER include patient administrative metadata (such as patient age, gender, doctor name, admission date, or bill number) as abnormal findings.
-3. Compare documented test values against their respective stated reference ranges:
-   - Within normal limits -> list in "normal_values"
-   - Out of range (high, low, critical) -> list in "abnormal_values" with clinical significance
-4. Identify multi-parameter correlations (e.g. renal panels, cardiac biomarkers, electrolyte balance, blood count patterns).
-5. Assign standard urgency levels:
-   - "critical": Marked deviation requiring urgent physician evaluation
-   - "significant": Notable deviation requiring clinical review and follow-up
-   - "mild": Minor or borderline variance for routine monitoring
-   - "normal": Standard physiological baseline
+CRITICAL INSTRUCTIONS:
+
+1. ENTITY-BY-ENTITY CLINICAL BREAKDOWN:
+For each extracted test or measurement parameter:
+- "about": Explain what this parameter/analyte is in plain language (its physiological role, what organ or function it reflects in the body).
+- "normal_range": The expected reference interval (from the document or standard clinical reference).
+- "fetched_value": The actual measured/reported value.
+- "classification": Classify the result strictly as "in_range", "high", "low", "critical_high", or "critical_low".
+- "clinical_significance": Explain what this specific result (high, low, or normal) means for the patient.
+
+2. HOLISTIC HEALTH CONSIDERATIONS & POTENTIAL CONDITIONS:
+Analyze ALL extracted values collectively across the entire document. Identify potential health conditions, diseases, or syndromes that could possibly be associated with the observed pattern of results.
+IMPORTANT TONE AND CAUTION RULE:
+- Do NOT make definitive diagnoses.
+- Use prudent, non-certain clinical phrasing (e.g., "Potential consideration to discuss with your doctor", "May suggest a tendency toward...", "Possible association with...").
+- Emphasize that these are possibilities for follow-up evaluation and clinical correlation, NOT certain diagnoses.
+
+3. EXCLUSION RULE:
+Do NOT evaluate administrative metadata (such as patient age, gender, doctor name, report date, or bill number) as diagnostic abnormalities.
 
 Return this exact JSON shape:
 {
   "report_summary": "A 2-3 sentence overall clinical impression synthesizing all findings in this document.",
+  "analyzed_parameters": [
+    {
+      "item_id": "ITEM_XXXXX",
+      "parameter": "Parameter Name",
+      "about": "Clear explanation of what this test/entity is and what it does in the body.",
+      "fetched_value": "Measured Value with units",
+      "normal_range": "Normal Reference Interval",
+      "classification": "in_range|high|low|critical_high|critical_low",
+      "clinical_significance": "What this specific result suggests in clinical context."
+    }
+  ],
+  "potential_conditions": [
+    {
+      "condition": "Name of potential condition, disease, or syndrome (e.g., Hyperuricemia / Gout, Renal Impairment, Electrolyte Imbalance)",
+      "associated_findings": ["List of related parameters contributing to this possibility"],
+      "explanation": "Why this combination of findings suggests this potential condition as a topic for medical review.",
+      "caution_note": "A cautious reminder that this is a non-definitive possibility requiring clinical correlation by a doctor, not a confirmed diagnosis."
+    }
+  ],
   "abnormal_values": [
     {
       "item_id": "ITEM_XXXXX",
-      "parameter": "Parameter or Test Name",
+      "parameter": "Parameter Name",
       "value": "Measured Value",
       "reference_range": "Normal Reference Interval",
       "status": "high|low|critical_high|critical_low|borderline_high|borderline_low",
-      "significance": "Clinical significance and physiological context.",
+      "significance": "Clinical significance explanation.",
       "urgency": "critical|significant|mild"
     }
   ],
@@ -38,28 +64,11 @@ Return this exact JSON shape:
       "note": "Confirmation of baseline physiological range."
     }
   ],
-  "clinical_correlations": [
-    {
-      "finding": "Clinical correlation or pattern across related findings.",
-      "related_item_ids": ["ITEM_XXXXX", "ITEM_YYYYY"],
-      "significance": "Pathophysiological context of these combined observations.",
-      "urgency": "critical|significant|mild"
-    }
-  ],
-  "risk_flags": [
-    {
-      "flag": "Concise risk or alert title",
-      "description": "Evidence-grounded rationale for this clinical risk flag.",
-      "related_item_ids": ["ITEM_XXXXX"],
-      "urgency": "critical|significant|mild"
-    }
-  ],
-  "patient_alert": "A clear, empathetic 2-4 sentence explanation suitable for a patient describing key findings and recommending physician discussion."
+  "patient_alert": "A clear, empathetic 2-4 sentence summary suitable for a patient explaining what they should discuss with their doctor."
 }
 
 Rules:
-1. Strictly ground all interpretation in the supplied data. Do not invent unstated conditions.
-2. Use reference ranges directly from the document. If no reference interval was reported, state that reference values were not specified.
-3. Preserve the original item_ids for full audit traceability.
+1. Ground all interpretation directly in the supplied data.
+2. Maintain prudent medical caution: suggest possibilities without unwarranted certainty.
+3. Preserve original item_ids for full audit traceability.
 4. Return valid JSON only without markdown or commentary.
-

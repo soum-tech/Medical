@@ -511,12 +511,13 @@ class ExtractionPipeline:
                     "urgency": urgency,
                 })
 
-        # 2. Query model for high-level semantic synthesis (summary, correlations, risks, patient alert)
+        # 2. Query model for high-level semantic synthesis (summary, correlations, risks, patient alert, potential conditions)
         try:
             response = self.client.complete(
                 _system_prompt("interpret.txt"),
                 "Interpret the following extracted medical report data. "
-                "Identify abnormal values, clinical correlations, and risk flags.\n"
+                "Provide entity-by-entity breakdowns (about, range, fetched value, classification) and "
+                "suggest potential non-definitive health conditions or patterns to discuss with a physician.\n"
                 + json.dumps(items, ensure_ascii=False),
             )
             result = _json_from_text(response)
@@ -527,6 +528,8 @@ class ExtractionPipeline:
         result.setdefault("clinical_correlations", [])
         result.setdefault("risk_flags", [])
         result.setdefault("patient_alert", "")
+        result.setdefault("potential_conditions", [])
+        result.setdefault("analyzed_parameters", [])
 
         # 3. Clean up and reconcile abnormal values:
         # Filter out any non-clinical parameters (Age, Sex, RefBy, Date) that the model mistakenly flagged
@@ -571,6 +574,76 @@ class ExtractionPipeline:
             if p_name and p_name not in NON_CLINICAL_PARAMS and p_name not in det_normals_by_param and p_name not in det_params_lower:
                 final_normals.append(rn)
         result["normal_values"] = final_normals
+
+        # 4. Synthesize comprehensive entity-by-entity analyzed_parameters
+        model_analyzed = {str(ap.get("parameter", "")).strip().lower(): ap for ap in result.get("analyzed_parameters", []) if isinstance(ap, dict)}
+        final_analyzed_params: list[dict[str, Any]] = []
+        seen_analyzed: set[str] = set()
+
+        for item in items:
+            data = item.get("data", {})
+            param = str(data.get("parameter") or "").strip()
+            if not param or param.lower() in NON_CLINICAL_PARAMS or param.lower() in seen_analyzed:
+                continue
+            seen_analyzed.add(param.lower())
+
+            val_raw = data.get("value_raw") or data.get("value_numeric")
+            unit_str = data.get("unit_raw") or ""
+            val_display = f"{val_raw} {unit_str}".strip() if val_raw is not None else "Not reported"
+            ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or "").strip() or "Standard reference interval"
+
+            # Check if this item is in abnormals or normals
+            matching_ab = next((a for a in final_abnormals if a["parameter"].lower() == param.lower()), None)
+            matching_norm = next((n for n in final_normals if n["parameter"].lower() == param.lower()), None)
+
+            if matching_ab:
+                classification = matching_ab.get("status", "high")
+                if "high" in classification:
+                    classification = "critical_high" if "critical" in classification else "high"
+                elif "low" in classification:
+                    classification = "critical_low" if "critical" in classification else "low"
+                clin_sig = matching_ab.get("significance", f"Value is {classification.replace('_', ' ')} relative to reference range.")
+            elif matching_norm:
+                classification = "in_range"
+                clin_sig = matching_norm.get("note", "Result is within physiological reference range.")
+            else:
+                classification = "in_range"
+                clin_sig = "Parameter observed in report."
+
+            # Check if model provided a rich "about" explanation
+            model_info = model_analyzed.get(param.lower(), {})
+            about_text = model_info.get("about") or f"{param} is a clinical diagnostic marker measured to assess bodily organ health and metabolic balance."
+
+            final_analyzed_params.append({
+                "item_id": item.get("item_id", ""),
+                "parameter": param,
+                "about": about_text,
+                "fetched_value": val_display,
+                "normal_range": ref_str,
+                "classification": classification,
+                "clinical_significance": clin_sig,
+            })
+
+        result["analyzed_parameters"] = final_analyzed_params
+
+        # 5. Ensure potential_conditions has prudent, non-certain phrasing and fallback if empty
+        pot_conds = result.get("potential_conditions", [])
+        valid_conds: list[dict[str, Any]] = []
+        for pc in pot_conds:
+            if isinstance(pc, dict) and pc.get("condition"):
+                pc.setdefault("caution_note", "This is a potential consideration for review with your doctor, NOT a definitive diagnosis.")
+                valid_conds.append(pc)
+
+        # Fallback if model did not return potential conditions but there are abnormal findings
+        if not valid_conds and final_abnormals:
+            ab_names = [a["parameter"] for a in final_abnormals]
+            valid_conds.append({
+                "condition": f"Clinical follow-up for altered {', '.join(ab_names[:3])}",
+                "associated_findings": ab_names,
+                "explanation": f"The documented variations in {', '.join(ab_names)} warrant evaluation to assess underlying metabolic or systemic factors.",
+                "caution_note": "These are potential considerations for review with your doctor, NOT a confirmed diagnosis."
+            })
+        result["potential_conditions"] = valid_conds
 
         # Fallback patient alert and summary if empty
         if not result["report_summary"]:

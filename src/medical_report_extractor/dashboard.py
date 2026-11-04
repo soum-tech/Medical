@@ -285,6 +285,100 @@ def generate_dashboard_html(
     .normal-value-row .nv-param {{ color: #cbd5e1; font-weight: 600; }}
     .normal-value-row .nv-val {{ color: var(--success); }}
     .normal-value-row .nv-note {{ color: var(--text-muted); font-size: 0.78rem; max-width: 50%; text-align: right; }}
+
+    /* Entity parameter card & Potential disease styles */
+    .analyzed-card {{
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+      transition: border 0.15s, transform 0.1s;
+    }}
+    .analyzed-card:hover {{ border-color: var(--primary); transform: translateY(-2px); }}
+    .analyzed-card.status-high {{ border-left: 4px solid #fbbf24; }}
+    .analyzed-card.status-critical {{ border-left: 4px solid #f87171; }}
+    .analyzed-card.status-low {{ border-left: 4px solid #60a5fa; }}
+    .analyzed-card.status-in_range {{ border-left: 4px solid #34d399; }}
+
+    .param-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }}
+    .param-title {{ font-size: 1.05rem; font-weight: 700; color: #fff; }}
+    .param-about {{
+      font-size: 0.85rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px dashed rgba(255, 255, 255, 0.07);
+    }}
+    .param-metrics-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }}
+    .metric-pill {{
+      background: rgba(15, 23, 42, 0.6);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }}
+    .metric-label {{ font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }}
+    .metric-value {{ font-size: 0.95rem; font-weight: 700; color: #fff; }}
+
+    .badge-classification {{
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }}
+    .class-in_range {{ background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid #34d399; }}
+    .class-high {{ background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid #fbbf24; }}
+    .class-low {{ background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid #60a5fa; }}
+    .class-critical {{ background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid #f87171; }}
+
+    .disclaimer-banner {{
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid var(--warning);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.88rem;
+      color: #fde68a;
+      line-height: 1.5;
+    }}
+    .potential-disease-card {{
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }}
+    .disease-title {{ font-size: 1rem; font-weight: 700; color: #fbbf24; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }}
+    .disease-findings {{ font-size: 0.78rem; color: #94a3b8; margin-bottom: 8px; }}
+    .disease-exp {{ font-size: 0.88rem; color: #e2e8f0; line-height: 1.6; margin-bottom: 10px; }}
+    .disease-caution {{
+      display: inline-block;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 10px;
+      border-radius: 4px;
+      border-left: 2px solid var(--warning);
+    }}
   </style>
 </head>
 <body>
@@ -465,35 +559,79 @@ def generate_dashboard_html(
       if (interp.report_summary) {{
         html += `
           <div class="interp-summary-card">
-            <h3>&#128203; Report Summary</h3>
+            <h3>&#128203; Clinical Summary &amp; Overview</h3>
             <p>${{interp.report_summary}}</p>
           </div>
         `;
       }}
 
-      // Abnormal Values Section
-      const abnormals = interp.abnormal_values || [];
-      if (abnormals.length > 0) {{
-        html += `<div class="section-header">&#9888;&#65039; Abnormal Values <span class="count-badge">${{abnormals.length}}</span></div>`;
-        abnormals.forEach(av => {{
-          const urgency = (av.urgency || 'mild').toLowerCase();
-          let borderClass = 'border-mild';
-          let urgencyClass = 'urgency-mild';
-          if (urgency === 'critical') {{ borderClass = 'border-critical'; urgencyClass = 'urgency-critical'; }}
-          else if (urgency === 'significant') {{ borderClass = 'border-significant'; urgencyClass = 'urgency-significant'; }}
-          else if (urgency === 'normal') {{ borderClass = 'border-normal'; urgencyClass = 'urgency-normal'; }}
+      // Potential Health Considerations / Diseases to Discuss (Cautious & Non-Definitive)
+      const potConds = interp.potential_conditions || [];
+      if (potConds.length > 0) {{
+        html += `
+          <div class="section-header">&#129658; Potential Health Considerations to Discuss with Your Doctor <span class="count-badge">${{potConds.length}}</span></div>
+          <div class="disclaimer-banner">
+            <span style="font-size:1.2rem;">&#9888;&#65039;</span>
+            <div>
+              <strong>Important Cautionary Notice:</strong> The potential conditions listed below are non-definitive patterns and physiological possibilities suggested by your combined test results for review with your healthcare provider. <em>They do NOT constitute a confirmed diagnosis.</em> Only a licensed physician can diagnose medical conditions.
+            </div>
+          </div>
+        `;
+        potConds.forEach(pc => {{
+          const findings = pc.associated_findings ? pc.associated_findings.join(', ') : '';
+          html += `
+            <div class="potential-disease-card">
+              <div class="disease-title">&#128302; ${{pc.condition || 'Potential Consideration'}}</div>
+              ${{findings ? `<div class="disease-findings"><strong>Associated markers:</strong> ${{findings}}</div>` : ''}}
+              <div class="disease-exp">${{pc.explanation || ''}}</div>
+              <div class="disease-caution">${{pc.caution_note || 'Possibility for physician evaluation, not a confirmed diagnosis.'}}</div>
+            </div>
+          `;
+        }});
+      }}
 
-          const status = (av.status || '').replace(/_/g, ' ');
+      // Entity-by-Entity Analyzed Parameters Breakdown
+      const analyzed = interp.analyzed_parameters || [];
+      if (analyzed.length > 0) {{
+        html += `<div class="section-header">&#128202; Test Parameter Breakdown &amp; Classification <span class="count-badge">${{analyzed.length}}</span></div>`;
+        analyzed.forEach(ap => {{
+          const cls = (ap.classification || 'in_range').toLowerCase();
+          let borderCls = 'status-in_range';
+          let badgeCls = 'class-in_range';
+          let badgeText = 'IN RANGE';
+
+          if (cls.includes('critical') && cls.includes('high')) {{
+            borderCls = 'status-critical'; badgeCls = 'class-critical'; badgeText = 'CRITICAL HIGH';
+          }} else if (cls.includes('critical') && cls.includes('low')) {{
+            borderCls = 'status-critical'; badgeCls = 'class-critical'; badgeText = 'CRITICAL LOW';
+          }} else if (cls.includes('high')) {{
+            borderCls = 'status-high'; badgeCls = 'class-high'; badgeText = 'HIGH';
+          }} else if (cls.includes('low')) {{
+            borderCls = 'status-low'; badgeCls = 'class-low'; badgeText = 'LOW';
+          }}
 
           html += `
-            <div class="abnormal-card ${{borderClass}}">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <div class="param-name">${{av.parameter || 'Unknown Parameter'}}</div>
-                <span class="urgency-badge ${{urgencyClass}}">${{urgency}}</span>
+            <div class="analyzed-card ${{borderCls}}">
+              <div class="param-header">
+                <span class="param-title">${{ap.parameter || 'Diagnostic Test'}}</span>
+                <span class="badge-classification ${{badgeCls}}">${{badgeText}}</span>
               </div>
-              <div class="param-detail"><strong>Value:</strong> ${{av.value || 'N/A'}} ${{av.reference_range ? '&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Reference:</strong> ' + av.reference_range : ''}}</div>
-              <div class="param-detail"><strong>Status:</strong> ${{status || 'N/A'}} ${{av.item_id ? '&nbsp;&nbsp;|&nbsp;&nbsp;<span style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">' + av.item_id + '</span>' : ''}}</div>
-              ${{av.significance ? `<div class="significance">${{av.significance}}</div>` : ''}}
+              ${{ap.about ? `<div class="param-about"><strong>About this test:</strong> ${{ap.about}}</div>` : ''}}
+              <div class="param-metrics-grid">
+                <div class="metric-pill">
+                  <span class="metric-label">Fetched Value</span>
+                  <span class="metric-value">${{ap.fetched_value || 'N/A'}}</span>
+                </div>
+                <div class="metric-pill">
+                  <span class="metric-label">Normal Range</span>
+                  <span class="metric-value">${{ap.normal_range || 'Not specified'}}</span>
+                </div>
+                <div class="metric-pill">
+                  <span class="metric-label">Status</span>
+                  <span class="metric-value">${{badgeText}}</span>
+                </div>
+              </div>
+              ${{ap.clinical_significance ? `<div style="font-size:0.85rem; color:#cbd5e1; margin-top:8px; line-height:1.5;"><strong>Clinical Context:</strong> ${{ap.clinical_significance}}</div>` : ''}}
             </div>
           `;
         }});
