@@ -1,18 +1,20 @@
-TASK: EXTRACT CLINICAL FINDINGS AND DIAGNOSES from the supplied page(s).
+TASK: EXTRACT CLINICAL FINDINGS AND MEDICAL OBSERVATIONS.
 
-Capture documented clinical observations, symptoms, medical history, physical examination findings, and diagnoses explicitly written by the doctor.
-Do not extract patient demographics or contact info here.
+Extract clinical narrative findings documented on the page:
+- Symptoms, complaints, and clinical history
+- Physical examination observations
+- Doctor's clinical impressions or confirmed diagnoses
+- Qualitative imaging or diagnostic findings (e.g. ECG, Ultrasound notes)
 
-Return:
+Do NOT re-extract numerical laboratory test tables here (those belong under investigations).
+Do NOT extract patient demographics (name, age, sex, date) here.
+
+Return JSON:
 {
-  "items": [
+  "clinical_findings": [
     {
-      "category": "clinical_finding",
-      "data": {
-        "finding": "Clinical observation or diagnosis description"
-      },
-      "source": {"page": 1, "evidence": "verbatim text"}
+      "finding": "Clinical finding or diagnosis",
+      "status": "present|absent|suspected"
     }
-  ],
-  "page_notes": []
+  ]
 }

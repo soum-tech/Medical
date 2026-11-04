@@ -1,6 +1,6 @@
 TASK: MAP ONE PAGE OF A MEDICAL DOCUMENT.
 
-Inspect the supplied page image and any extracted page text. Identify the page/document type and the information sections visibly present. Use only these canonical categories:
+Inspect the supplied page image and any extracted page text. Identify the page/document type and the information sections visibly present. Use only these exact categories:
 - patient
 - clinical
 - investigations
@@ -9,22 +9,21 @@ Inspect the supplied page image and any extracted page text. Identify the page/d
 - other
 
 Category guidance:
-- patient: patient demographics, identifiers, contact details.
-- clinical: symptoms, history, allergies, diagnoses, examination findings, clinical notes.
-- investigations: laboratory tests, imaging investigations, measurements, results, reference ranges.
-- medications: prescribed or listed medicines and instructions.
-- care: procedures, interventions, treatment plans, advice, discharge instructions, follow-up.
-- other: administrative or relevant content not covered above.
+- patient: patient demographics, identifiers, doctor, date.
+- clinical: symptoms, medical history, examination findings, clinical notes.
+- investigations: laboratory tests, pathology, measurements, results, reference ranges.
+- medications: prescribed medicines and dosages.
+- care: advice, treatment plans, follow-up instructions.
+- other: administrative content not covered above.
 
 Return this JSON shape:
 {
-  "page_number": <integer>,
-  "document_type": "...",
+  "page_number": 1,
+  "document_type": "Laboratory Report",
   "sections": [
-    {"category": "patient|clinical|investigations|medications|care|other", "description": "...", "region_hint": "..."}
+    {"category": "patient", "description": "Patient demographic header", "region_hint": "top"},
+    {"category": "investigations", "description": "Laboratory test results", "region_hint": "middle"}
   ],
-  "unreadable_regions": ["..."],
-  "page_notes": ["..."]
+  "unreadable_regions": [],
+  "page_notes": []
 }
-
-List every relevant section you can identify. If uncertain, include category "other" and explain the uncertainty in page_notes. Do not infer that a section exists merely because it is common in medical reports.

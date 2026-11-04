@@ -1,30 +1,23 @@
-TASK: EXTRACT PATIENT DEMOGRAPHICS from the supplied page(s).
+TASK: EXTRACT PATIENT DEMOGRAPHICS AND DOCUMENT METADATA.
 
-Extract patient personal details from the document header:
-- Name
-- Age
-- Gender / Sex
-- Referring Doctor (RefBy)
-- Date / Report Date
-- Patient ID / Bill Number
+Extract administrative details from the document header:
+- "name": Patient name
+- "age": Patient age (e.g. "38 yrs")
+- "gender": Patient gender / sex
+- "doctor": Referring or attending doctor (e.g. RefBy)
+- "date": Report or collection date
+- "id": Patient ID, MRN, or Bill number
 
-Do NOT extract laboratory tests or medical findings here.
+Do NOT extract laboratory tests, numeric lab measurements, or clinical findings here.
 
-Return:
+Return JSON:
 {
-  "items": [
-    {
-      "category": "patient",
-      "data": {
-        "name": "Patient name",
-        "age_raw": "Age",
-        "gender": "Gender",
-        "doctor": "Referring doctor",
-        "date": "Report date",
-        "patient_id": "ID or Bill number"
-      },
-      "source": {"page": 1, "evidence": "verbatim text"}
-    }
-  ],
-  "page_notes": []
+  "patient": {
+    "name": "Patient name",
+    "age": "Age",
+    "gender": "Gender / Sex",
+    "doctor": "Referring doctor",
+    "date": "Report date",
+    "id": "Patient or Bill ID"
+  }
 }

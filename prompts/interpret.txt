@@ -1,33 +1,44 @@
-TASK: INTERPRET EXTRACTED MEDICAL REPORT FINDINGS.
+TASK: CLINICAL INTERPRETATION OF MEDICAL REPORT FINDINGS.
 
-For each medical test or parameter:
-- "about": Explain what this test measures and its role in the body.
-- "normal_range": Normal reference range.
-- "fetched_value": Measured test value.
-- "classification": Classify as "in_range", "high", or "low".
+Analyze the extracted laboratory tests and medical data:
 
-Analyze all test results together:
-- "potential_conditions": Suggest possible conditions or diseases to discuss with a physician. Be cautious and do NOT be certain (use phrasing like "possible consideration", "may suggest", "not a definitive diagnosis").
+1. ENTITY BREAKDOWN:
+For each diagnostic test:
+- "about": Explain in 1-2 plain-language sentences what this test is and its physiological function in the body.
+- "normal_range": The standard normal reference interval.
+- "fetched_value": The patient's measured value.
+- "classification": "in_range", "high", or "low" relative to the normal range.
 
-Do NOT include patient demographics (age, sex, date, doctor, address) as medical tests or abnormalities.
+2. POTENTIAL CONDITIONS & HEALTH CONSIDERATIONS:
+Analyze all test values in combination:
+- "potential_conditions": Suggest potential health considerations, patterns, or diseases to discuss with a physician.
+  IMPORTANT: Be cautious and NEVER be certain. Use non-definitive phrasing (e.g. "may suggest", "possible consideration", "worth discussing with a doctor to evaluate"). NEVER state a definitive diagnosis.
+
+3. PATIENT GUIDANCE:
+- "report_summary": A concise overview of findings.
+- "patient_alert": Plain-language guidance for the patient to discuss with their physician.
+
+Do NOT classify or treat patient demographics (age, sex, date, doctor, bill id) as medical tests or abnormalities.
 
 Return JSON:
 {
-  "report_summary": "Brief 2-sentence clinical summary.",
+  "report_summary": "Concise summary of findings.",
   "parameters": [
     {
-      "parameter": "Test name",
+      "parameter": "Test name (e.g. Uric Acid, Sodium, etc.)",
       "about": "What this test measures and its function in the body.",
       "normal_range": "Normal reference range",
-      "fetched_value": "Measured test value",
+      "fetched_value": "Patient's measured value",
       "classification": "in_range|high|low"
     }
   ],
   "potential_conditions": [
     {
-      "condition": "Possible condition or disease name",
-      "explanation": "Why this might be considered (cautious, not a confirmed diagnosis)"
+      "condition": "Potential consideration or disease name",
+      "associated_findings": ["Test1", "Test2"],
+      "explanation": "Why these combined markers may suggest this possibility (cautious, not definitive)",
+      "caution_note": "This is a potential consideration for review with your doctor, NOT a definitive diagnosis."
     }
   ],
-  "patient_alert": "Brief advice for the patient to discuss with their doctor."
+  "patient_alert": "Clear advice for physician discussion."
 }

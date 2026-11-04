@@ -1,8 +1,14 @@
 TASK: EXTRACT MEDICATION INFORMATION from the supplied page(s).
 
-Capture medicine/product name exactly as written; strength; dose; dosage form; route; frequency; timing; duration; quantity; refills; start/stop dates; instructions; prescriber; and whether it is described as newly prescribed, currently taken, previously taken, discontinued, or merely mentioned.
+Extract prescription and listed medications:
+- Medication name
+- Dosage and strength
+- Frequency and timing instructions
 
-Do not infer a medicine's generic name, dose, route, or duration. If handwriting or spelling is unclear, preserve the readable portion and mark the item ambiguous. Keep separate medication entries separate.
+If no medications are listed on the page, return an empty list.
 
-Return:
-{"items":[{"category":"medication|medication_instruction","data":{},"assertion_status":"present|absent|uncertain|unknown","source":{"page":1,"evidence":"verbatim source text","region":"..."},"extraction_status":"extracted|ambiguous|illegible"}],"page_notes":[]}
+Return JSON:
+{
+  "items": [],
+  "page_notes": []
+}

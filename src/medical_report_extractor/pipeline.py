@@ -177,7 +177,7 @@ def _evaluate_numeric_status(val: float, low: float | None, high: float | None) 
     Deterministically compare numeric value against reference range.
     Returns (status, urgency):
       - status: 'normal', 'high', 'low', 'critical_high', 'critical_low'
-      - urgency: 'normal', 'mild', 'significant', 'critical'
+      - urgency: 'normal', 'significant', 'critical'
     """
     if low is not None and high is not None:
         span = high - low
@@ -188,25 +188,19 @@ def _evaluate_numeric_status(val: float, low: float | None, high: float | None) 
             deficit = low - val
             if deficit > 0.3 * span:
                 return "critical_low", "critical"
-            elif deficit > 0.1 * span:
-                return "low", "significant"
-            else:
-                return "borderline_low", "mild"
+            return "low", "significant"
         elif val > high:
             surplus = val - high
             if surplus > 0.3 * span:
                 return "critical_high", "critical"
-            elif surplus > 0.1 * span:
-                return "high", "significant"
-            else:
-                return "borderline_high", "mild"
+            return "high", "significant"
         else:
             return "normal", "normal"
-    elif low is not None:  # e.g., > 50
+    elif low is not None:
         if val < low:
             return "low", "significant"
         return "normal", "normal"
-    elif high is not None:  # e.g., < 10
+    elif high is not None:
         if val > high:
             return "high", "significant"
         return "normal", "normal"
@@ -216,19 +210,53 @@ def _evaluate_numeric_status(val: float, low: float | None, high: float | None) 
 
 DEMOGRAPHIC_PREFIXES = (
     "age", "sex", "gender", "dob", "birth", "date", "name", "patient", "contact",
-    "phone", "mobile", "address", "doctor", "dr", "ref", "hospital", "lab",
-    "facility", "b.no", "bno", "bill", "mrn", "uhid", "ip", "op", "department"
+    "phone", "mobile", "address", "doctor", "dr", "ref", "hospital", "facility",
+    "bno", "bill", "mrn", "uhid", "consultant", "pathologist", "specimen"
 )
 
+
 def _is_demographic_key(key: str) -> bool:
-    kl = str(key).lower().strip()
-    if not kl or kl in {"parameter", "parameter_raw", "value", "value_raw", "value_numeric",
-                       "unit", "unit_raw", "reference_range", "reference_range_raw", "flag"}:
+    kl = re.sub(r"[^a-z0-9]", "", str(key).lower())
+    if not kl or kl in {
+        "parameter", "value", "valueraw", "valuenumeric",
+        "unit", "unitraw", "referencerange", "referencerangeraw", "flag"
+    }:
         return True
-    for prefix in DEMOGRAPHIC_PREFIXES:
-        if kl == prefix or kl.startswith(prefix + "_") or kl.endswith("_" + prefix):
-            return True
-    return False
+    return any(kl.startswith(p) for p in DEMOGRAPHIC_PREFIXES)
+
+
+MEDICAL_TEST_KNOWLEDGE = {
+    "sodium": "Sodium is an essential electrolyte that maintains fluid balance, blood pressure, and cellular nerve and muscle function.",
+    "potassium": "Potassium is a vital electrolyte that regulates heart rhythm, fluid balance, and electrical signals in nerve and muscle cells.",
+    "chloride": "Chloride is an essential electrolyte that collaborates with sodium and potassium to regulate hydration and acid-base (pH) balance.",
+    "bicarbonate": "Bicarbonate is an electrolyte and key chemical buffer that regulates systemic acid-base (pH) balance in the blood.",
+    "urea": "Urea is a metabolic byproduct of protein breakdown filtered and excreted by the kidneys, used to evaluate renal function.",
+    "creatinine": "Creatinine is a waste product of muscle catabolism filtered out by healthy kidneys, serving as a primary marker of kidney filtration health.",
+    "uric acid": "Uric acid is a waste product from purine metabolism, evaluated to assess kidney excretory capacity and risks for gout or renal calculi.",
+    "haemoglobin": "Haemoglobin is an iron-rich protein in red blood cells responsible for carrying oxygen from the lungs to organs and tissues throughout the body.",
+    "hemoglobin": "Hemoglobin is an iron-rich protein in red blood cells responsible for carrying oxygen from the lungs to organs and tissues throughout the body.",
+    "glucose": "Glucose is the body's primary metabolic fuel source, tightly regulated by insulin to assess glycemic control, diabetes risk, or hypoglycemia.",
+    "platelets": "Platelets are blood cells that initiate clotting and vascular repair to prevent excessive bleeding.",
+    "wbc": "White blood cells are immune cells that protect against microbial infections, inflammatory processes, and systemic illness.",
+    "rbc": "Red blood cells transport oxygen and carbon dioxide between the lungs and peripheral body tissues.",
+    "bilirubin": "Bilirubin is a yellowish compound formed during the breakdown of red blood cells, processed by the liver to assess biliary and hepatic health.",
+    "albumin": "Albumin is a liver-synthesized plasma protein that maintains vascular oncotic pressure and transports hormones, vitamins, and medications.",
+    "total protein": "Total protein measures the combined amount of albumin and globulins to evaluate liver function, nutritional status, and kidney health.",
+    "calcium": "Calcium is an essential mineral required for bone structure, cardiac contractions, nerve signaling, and blood coagulation.",
+    "cholesterol": "Cholesterol is a lipid substance essential for building cell membranes, synthesizing vitamin D, and producing steroid hormones.",
+    "triglycerides": "Triglycerides are the main form of stored body fat, utilized for cellular energy and evaluated as a marker of cardiovascular risk.",
+}
+
+
+def _get_medical_test_about(param: str) -> str:
+    p_lower = param.lower().strip()
+    if p_lower in MEDICAL_TEST_KNOWLEDGE:
+        return MEDICAL_TEST_KNOWLEDGE[p_lower]
+    for k, desc in MEDICAL_TEST_KNOWLEDGE.items():
+        if k in p_lower:
+            return desc
+    return f"{param} is a clinical diagnostic marker measured to evaluate specific organ function, metabolic equilibrium, and physiological balance."
+
 
 def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
@@ -236,13 +264,10 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     (e.g., {'Sodium': 138, 'Potassium': 5, 'Sodium Level': '130-145', 'Age': 38, ...}),
     expand it into distinct individual items so they can be processed cleanly.
     """
-
-
     expanded: list[dict[str, Any]] = []
     for item in items:
         cat = str(item.get("category") or "").lower()
-        # NEVER convert patient, provider, facility, or metadata items into investigations!
-        if cat in {"patient", "provider", "facility", "document_metadata"}:
+        if any(p in cat for p in ("patient", "provider", "facility", "metadata", "demographic")):
             expanded.append(item)
             continue
 
@@ -251,8 +276,6 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             expanded.append(item)
             continue
 
-        # Check if data contains multiple key-value pairs representing tests
-        # e.g., 'Sodium': 138, 'Potassium': 5, 'Chloride': 113
         test_keys = [
             k for k in data.keys()
             if not k.lower().endswith(" level")
@@ -261,19 +284,16 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             and not _is_demographic_key(k)
         ]
 
-        # If data only has standard fields or 1 test, leave it
         if len(test_keys) <= 1:
             expanded.append(item)
             continue
 
-        # It's a bundled object. Unpack it!
         item_id = item.get("item_id", "ITEM_00000")
         source = item.get("source", {})
         sub_counter = 1
 
         for tk in test_keys:
             val = data[tk]
-            # Look for matching range/level key, e.g. "Sodium Level" or "Sodium Range"
             ref_range = (
                 data.get(f"{tk} Level")
                 or data.get(f"{tk} level")
@@ -287,7 +307,8 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             try:
                 num_val = float(str(val).strip())
             except (ValueError, TypeError):
-                num_val = None
+                m_num = re.search(r"[-+]?\d*\.?\d+", str(val))
+                num_val = float(m_num.group(0)) if m_num else None
 
             new_item = {
                 "item_id": f"{item_id}_{sub_counter}",
@@ -307,10 +328,9 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             expanded.append(new_item)
             sub_counter += 1
 
-        # Also preserve patient/metadata fields if present
         meta_data: dict[str, Any] = {}
         for k, v in data.items():
-            if k.lower() in {"age", "sex", "gender", "refby", "ref_by", "date", "name"}:
+            if _is_demographic_key(k):
                 meta_data[k] = v
         if meta_data:
             expanded.append({
@@ -324,7 +344,11 @@ def _expand_flat_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     return expanded
 
-    return [items[i : i + size] for i in range(0, len(items), size)]
+
+def _chunks(lst: list[Any], n: int):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 
 def _page_categories(page_map: PageMap) -> set[str]:
@@ -403,6 +427,152 @@ class ExtractionPipeline:
             mapped.append(page_map)
         return mapped
 
+    def _parse_category_items(
+        self,
+        parsed: Any,
+        category: str,
+        document_id: str,
+        default_page: int,
+    ) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+
+        if category == "patient":
+            patient_data: dict[str, Any] = {}
+            if isinstance(parsed, dict):
+                if "patient" in parsed and isinstance(parsed["patient"], dict):
+                    patient_data = parsed["patient"]
+                elif "items" in parsed and isinstance(parsed["items"], list):
+                    for it in parsed["items"]:
+                        if isinstance(it, dict):
+                            d = it.get("data") if isinstance(it.get("data"), dict) else {k: v for k, v in it.items() if k not in {"category", "source", "assertion_status"}}
+                            patient_data.update(d)
+                else:
+                    patient_data = {k: v for k, v in parsed.items() if k not in {"items", "page_notes"}}
+
+            if patient_data:
+                clean_patient = {k: v for k, v in patient_data.items() if _is_demographic_key(k) and v is not None and str(v).strip()}
+                if clean_patient:
+                    records.append({
+                        "item_id": self._next_id(),
+                        "category": "patient",
+                        "data": clean_patient,
+                        "assertion_status": "present",
+                        "source": {"document_id": document_id, "page": default_page, "evidence": "Patient demographic header"},
+                        "extraction_status": "extracted",
+                    })
+            return records
+
+        if category == "investigations":
+            raw_list = []
+            if isinstance(parsed, dict):
+                raw_list = (
+                    parsed.get("items")
+                    or parsed.get("tests")
+                    or parsed.get("investigations")
+                    or parsed.get("results")
+                    or parsed.get("parameters")
+                    or []
+                )
+                if not raw_list:
+                    for k, v in parsed.items():
+                        if (k not in {"page_notes", "sections"} and not _is_demographic_key(k) and
+                            not k.lower().endswith(" level") and not k.lower().endswith(" range") and not k.lower().endswith(" unit")):
+                            ref = parsed.get(f"{k} Level") or parsed.get(f"{k} Range") or parsed.get(f"{k} Ref") or ""
+                            unit = parsed.get(f"{k} Unit") or parsed.get(f"{k} unit") or ""
+                            raw_list.append({"name": k, "value": str(v), "normal_range": str(ref), "unit": str(unit)})
+            elif isinstance(parsed, list):
+                raw_list = parsed
+
+            for entry in raw_list:
+                if not isinstance(entry, dict):
+                    continue
+                d = entry.get("data") if isinstance(entry.get("data"), dict) else entry
+                p_name = (
+                    d.get("name")
+                    or d.get("parameter")
+                    or d.get("test")
+                    or d.get("test_name")
+                    or d.get("investigation")
+                    or ""
+                )
+                p_name = str(p_name).strip()
+
+                if not p_name:
+                    cand_keys = [k for k in d.keys() if not _is_demographic_key(k) and k not in {"category", "source", "assertion_status", "extraction_status", "page"}]
+                    if len(cand_keys) == 1:
+                        p_name = cand_keys[0]
+                        val = d[p_name]
+                    else:
+                        continue
+                else:
+                    val = d.get("value") or d.get("value_raw") or d.get("result") or d.get("test_value") or ""
+
+                if _is_demographic_key(p_name):
+                    continue
+
+                ref = d.get("normal_range") or d.get("reference_range_raw") or d.get("reference_range") or d.get("range") or d.get("ref_range") or ""
+                unit = d.get("unit") or d.get("unit_raw") or d.get("units") or ""
+                flag = d.get("flag")
+
+                try:
+                    num_val = float(str(val).strip())
+                except (ValueError, TypeError):
+                    m_num = re.search(r"[-+]?\d*\.?\d+", str(val))
+                    num_val = float(m_num.group(0)) if m_num else None
+
+                records.append({
+                    "item_id": self._next_id(),
+                    "category": "investigation",
+                    "data": {
+                        "parameter": p_name,
+                        "value_raw": str(val).strip(),
+                        "value_numeric": num_val,
+                        "unit_raw": str(unit).strip(),
+                        "reference_range_raw": str(ref).strip(),
+                        "flag": flag,
+                    },
+                    "assertion_status": "present",
+                    "source": {"document_id": document_id, "page": default_page, "evidence": str(entry.get("source", {}).get("evidence") or f"{p_name}: {val}")},
+                    "extraction_status": "extracted",
+                })
+            return records
+
+        if category == "clinical":
+            findings_list = []
+            if isinstance(parsed, dict):
+                findings_list = (
+                    parsed.get("clinical_findings")
+                    or parsed.get("findings")
+                    or parsed.get("items")
+                    or []
+                )
+            elif isinstance(parsed, list):
+                findings_list = parsed
+
+            for f in findings_list:
+                if not isinstance(f, dict):
+                    continue
+                d = f.get("data") if isinstance(f.get("data"), dict) else f
+                finding_text = d.get("finding") or d.get("diagnosis") or d.get("impression") or d.get("symptom") or d.get("note") or ""
+                if not finding_text or _is_demographic_key(finding_text) or len(str(finding_text).strip()) < 2:
+                    continue
+                records.append({
+                    "item_id": self._next_id(),
+                    "category": "clinical",
+                    "data": {"finding": str(finding_text).strip()},
+                    "assertion_status": d.get("status", "present"),
+                    "source": {"document_id": document_id, "page": default_page, "evidence": str(finding_text)},
+                    "extraction_status": "extracted",
+                })
+            return records
+
+        raw_items = parsed.get("items", []) if isinstance(parsed, dict) else parsed
+        if isinstance(raw_items, list):
+            for raw_item in raw_items:
+                if isinstance(raw_item, dict) and raw_item:
+                    records.append(validate_extracted_item(raw_item, document_id, self._next_id()))
+        return records
+
     def _extract_category(
         self,
         category: str,
@@ -419,20 +589,14 @@ class ExtractionPipeline:
                 f"Document ID: {document_id}\n"
                 f"Target extraction category: {category}\n"
                 f"Source pages in this call: {page_numbers}\n"
-                "Extract all items belonging to this agent's scope from these pages. "
-                "For each item, set source.page to the original page number.\n"
+                "Extract all items belonging to this agent's scope from these pages.\n"
                 f"Additional audit context (if any): {retry_context or 'None'}\n"
                 "Return the JSON object specified by the task prompt."
             )
             response = self.client.complete(prompt, user_text, page_chunk)
             parsed = _json_from_text(response)
-            raw_items = parsed.get("items", [])
-            if not isinstance(raw_items, list):
-                raise ValueError(f"Agent '{category}' returned 'items' in a non-list format.")
-            for raw_item in raw_items:
-                if not isinstance(raw_item, dict):
-                    continue
-                records.append(validate_extracted_item(raw_item, document_id, self._next_id()))
+            page_recs = self._parse_category_items(parsed, category, document_id, page_numbers[0])
+            records.extend(page_recs)
             if isinstance(parsed.get("page_notes"), list):
                 notes.extend(str(note) for note in parsed["page_notes"])
         return records, notes
@@ -475,23 +639,32 @@ class ExtractionPipeline:
                 "clinical_correlations": [],
                 "risk_flags": [],
                 "patient_alert": "No data was extracted from the document.",
+                "analyzed_parameters": [],
+                "potential_conditions": [],
             }
 
-        # 1. First, compute deterministic range checks directly on items with values and reference ranges
         deterministic_abnormals: list[dict[str, Any]] = []
         deterministic_normals: list[dict[str, Any]] = []
-        NON_CLINICAL_PARAMS = {"age", "sex", "gender", "refby", "ref_by", "date", "name", "b.no", "mrn", "contact", "phone", "address", "department", "uhid", "opd", "ipd", "mobile", "doctor", "dr", "hospital", "facility", "bill", "bno"}
+
+        test_items: list[dict[str, Any]] = []
+        seen_params: set[str] = set()
 
         for item in items:
             cat = str(item.get("category") or "").lower()
-            if cat in {"patient", "provider", "facility", "document_metadata"}:
+            if any(p in cat for p in ("patient", "provider", "facility", "metadata", "demographic")):
                 continue
             data = item.get("data", {})
-            param = str(data.get("parameter") or "").strip()
+            param = str(data.get("parameter") or data.get("name") or data.get("test") or "").strip()
             if not param or _is_demographic_key(param):
                 continue
 
-            ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or "").strip()
+            p_norm = re.sub(r"[^a-z0-9]", "", param.lower())
+            if p_norm in seen_params:
+                continue
+            seen_params.add(p_norm)
+            test_items.append(item)
+
+            ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or data.get("normal_range") or "").strip()
             val_raw = data.get("value_raw") or data.get("value_numeric")
             if val_raw is None:
                 continue
@@ -499,6 +672,10 @@ class ExtractionPipeline:
             try:
                 num_val = float(str(val_raw).strip())
             except (ValueError, TypeError):
+                m_num = re.search(r"[-+]?\d*\.?\d+", str(val_raw))
+                num_val = float(m_num.group(0)) if m_num else None
+
+            if num_val is None:
                 continue
 
             low, high = _parse_range_bounds(ref_str)
@@ -506,8 +683,8 @@ class ExtractionPipeline:
                 continue
 
             status, urgency = _evaluate_numeric_status(num_val, low, high)
-            unit_str = data.get("unit_raw") or ""
-            val_display = f"{num_val} {unit_str}".strip()
+            unit_str = data.get("unit_raw") or data.get("unit") or ""
+            val_display = f"{val_raw} {unit_str}".strip()
 
             if status == "normal":
                 deterministic_normals.append({
@@ -516,10 +693,10 @@ class ExtractionPipeline:
                     "value": val_display,
                     "reference_range": ref_str,
                     "status": "normal",
-                    "note": f"Within reference range ({ref_str}).",
+                    "urgency": "normal",
+                    "note": f"Within normal reference interval ({ref_str}).",
                 })
             else:
-                direction = "high" if "high" in status else "low"
                 sig = f"{param} is {status.replace('_', ' ')} (measured {val_display}, normal range is {ref_str})."
                 deterministic_abnormals.append({
                     "item_id": item.get("item_id", ""),
@@ -531,14 +708,11 @@ class ExtractionPipeline:
                     "urgency": urgency,
                 })
 
-        # 2. Query model for high-level semantic synthesis (summary, correlations, risks, patient alert, potential conditions)
         try:
             response = self.client.complete(
                 _system_prompt("interpret.txt"),
-                "Interpret the following extracted medical report data. "
-                "Provide entity-by-entity breakdowns (about, range, fetched value, classification) and "
-                "suggest potential non-definitive health conditions or patterns to discuss with a physician.\n"
-                + json.dumps(items, ensure_ascii=False),
+                "Interpret the following extracted medical report data. Provide entity-by-entity breakdowns and suggest potential non-definitive health conditions or patterns to discuss with a physician.\n"
+                + json.dumps(test_items, ensure_ascii=False),
             )
             result = _json_from_text(response)
         except Exception:
@@ -551,92 +725,51 @@ class ExtractionPipeline:
         result.setdefault("potential_conditions", [])
         result.setdefault("analyzed_parameters", [])
 
-        # 3. Clean up and reconcile abnormal values:
-        # Filter out any non-clinical parameters (Age, Sex, RefBy, Date) that the model mistakenly flagged
-        raw_abnormals = result.get("abnormal_values", [])
-        model_abnormals = []
-        for av in raw_abnormals:
-            p_name = str(av.get("parameter", "")).strip().lower()
-            if not p_name or _is_demographic_key(p_name):
-                continue
-            # If status is normal, skip it from abnormal list
-            if av.get("status", "").lower() == "normal" or av.get("urgency", "").lower() == "normal":
-                continue
-            model_abnormals.append(av)
-
-        # Merge deterministic calculations with model results
-        # Deterministic math takes priority for status/urgency of numerical values!
-        det_by_param = {a["parameter"].lower(): a for a in deterministic_abnormals}
-        final_abnormals: list[dict[str, Any]] = []
-
-        # Add all verified deterministic abnormals
-        for det_a in deterministic_abnormals:
-            # Check if model gave a more descriptive clinical explanation
-            matching_model = next((m for m in model_abnormals if m.get("parameter", "").lower() == det_a["parameter"].lower()), None)
-            if matching_model and matching_model.get("significance"):
-                det_a["significance"] = matching_model["significance"]
-            final_abnormals.append(det_a)
-
-        # Add any qualitative model abnormals (e.g. imaging, ecg findings) that weren't numerical ranges
-        det_params_lower = {a["parameter"].lower() for a in deterministic_abnormals}
-        for ma in model_abnormals:
-            if ma.get("parameter", "").lower() not in det_params_lower and ma.get("parameter", "").lower() not in {n["parameter"].lower() for n in deterministic_normals}:
-                final_abnormals.append(ma)
-
+        final_abnormals = [a for a in deterministic_abnormals if not _is_demographic_key(a["parameter"])]
+        final_normals = [n for n in deterministic_normals if not _is_demographic_key(n["parameter"])]
         result["abnormal_values"] = final_abnormals
-
-        # Reconcile normal values
-        det_normals_by_param = {n["parameter"].lower(): n for n in deterministic_normals}
-        raw_normals = result.get("normal_values", [])
-        final_normals = list(deterministic_normals)
-        for rn in raw_normals:
-            p_name = str(rn.get("parameter", "")).strip().lower()
-            if p_name and not _is_demographic_key(p_name) and p_name not in det_normals_by_param and p_name not in det_params_lower:
-                final_normals.append(rn)
         result["normal_values"] = final_normals
 
-        # 4. Synthesize comprehensive entity-by-entity analyzed_parameters
         raw_params = result.get("parameters") or result.get("analyzed_parameters") or []
-        model_analyzed = {str(ap.get("parameter", "")).strip().lower(): ap for ap in raw_params if isinstance(ap, dict)}
-        final_analyzed_params: list[dict[str, Any]] = []
-        seen_analyzed: set[str] = set()
+        model_analyzed = {
+            re.sub(r"[^a-z0-9]", "", str(ap.get("parameter", "")).lower()): ap.get("about", "")
+            for ap in raw_params if isinstance(ap, dict) and ap.get("about")
+        }
 
-        for item in items:
-            cat = str(item.get("category") or "").lower()
-            if cat in {"patient", "provider", "facility", "document_metadata"}:
-                continue
+        final_analyzed_params: list[dict[str, Any]] = []
+
+        for item in test_items:
             data = item.get("data", {})
-            param = str(data.get("parameter") or "").strip()
-            if not param or _is_demographic_key(param) or param.lower() in seen_analyzed:
-                continue
-            seen_analyzed.add(param.lower())
+            param = str(data.get("parameter") or data.get("name") or data.get("test") or "").strip()
+            p_norm = re.sub(r"[^a-z0-9]", "", param.lower())
 
             val_raw = data.get("value_raw") or data.get("value_numeric")
-            unit_str = data.get("unit_raw") or ""
+            unit_str = data.get("unit_raw") or data.get("unit") or ""
             val_display = f"{val_raw} {unit_str}".strip() if val_raw is not None else "Not reported"
-            ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or "").strip() or "Standard reference interval"
+            ref_str = str(data.get("reference_range_raw") or data.get("reference_range") or data.get("normal_range") or "").strip() or "Standard reference interval"
 
-            # Check if this item is in abnormals or normals
-            matching_ab = next((a for a in final_abnormals if a["parameter"].lower() == param.lower()), None)
-            matching_norm = next((n for n in final_normals if n["parameter"].lower() == param.lower()), None)
+            matching_ab = next((a for a in final_abnormals if re.sub(r"[^a-z0-9]", "", a["parameter"].lower()) == p_norm), None)
+            matching_norm = next((n for n in final_normals if re.sub(r"[^a-z0-9]", "", n["parameter"].lower()) == p_norm), None)
 
             if matching_ab:
-                classification = matching_ab.get("status", "high")
-                if "high" in classification:
-                    classification = "critical_high" if "critical" in classification else "high"
-                elif "low" in classification:
-                    classification = "critical_low" if "critical" in classification else "low"
+                st = matching_ab.get("status", "high")
+                if "critical" in st:
+                    classification = "critical_high" if "high" in st else "critical_low"
+                else:
+                    classification = "high" if "high" in st else "low"
                 clin_sig = matching_ab.get("significance", f"Value is {classification.replace('_', ' ')} relative to reference range.")
             elif matching_norm:
                 classification = "in_range"
-                clin_sig = matching_norm.get("note", "Result is within physiological reference range.")
+                clin_sig = "Result is within standard physiological reference interval."
             else:
                 classification = "in_range"
                 clin_sig = "Parameter observed in report."
 
-            # Check if model provided a rich "about" explanation
-            model_info = model_analyzed.get(param.lower(), {})
-            about_text = model_info.get("about") or f"{param} is a clinical diagnostic marker measured to assess bodily organ health and metabolic balance."
+            about_text = (
+                _get_medical_test_about(param)
+                or model_analyzed.get(p_norm)
+                or f"{param} is a clinical diagnostic marker measured to evaluate organ health and metabolic balance."
+            )
 
             final_analyzed_params.append({
                 "item_id": item.get("item_id", ""),
@@ -650,39 +783,62 @@ class ExtractionPipeline:
 
         result["analyzed_parameters"] = final_analyzed_params
 
-        # 5. Ensure potential_conditions has prudent, non-certain phrasing and fallback if empty
         pot_conds = result.get("potential_conditions") or result.get("possible_conditions") or []
         valid_conds: list[dict[str, Any]] = []
         for pc in pot_conds:
             if isinstance(pc, dict) and pc.get("condition"):
+                assoc = [f for f in pc.get("associated_findings", []) if not _is_demographic_key(str(f))]
+                pc["associated_findings"] = assoc
                 pc.setdefault("caution_note", "This is a potential consideration for review with your doctor, NOT a definitive diagnosis.")
                 valid_conds.append(pc)
 
-        # Fallback if model did not return potential conditions but there are abnormal findings
         if not valid_conds and final_abnormals:
             ab_names = [a["parameter"] for a in final_abnormals]
-            valid_conds.append({
-                "condition": f"Clinical follow-up for altered {', '.join(ab_names[:3])}",
-                "associated_findings": ab_names,
-                "explanation": f"The documented variations in {', '.join(ab_names)} warrant evaluation to assess underlying metabolic or systemic factors.",
-                "caution_note": "These are potential considerations for review with your doctor, NOT a confirmed diagnosis."
-            })
+            ab_lowers = {a.lower() for a in ab_names}
+            if "chloride" in ab_lowers and ("bicarbonate" in ab_lowers or "co2" in ab_lowers):
+                valid_conds.append({
+                    "condition": "Potential Acid-Base or Fluid Balance Consideration",
+                    "associated_findings": [a for a in ab_names if a.lower() in ("chloride", "bicarbonate", "co2")],
+                    "explanation": "Elevated chloride accompanied by lower bicarbonate levels may suggest metabolic acid-base variation or dehydration requiring physician evaluation.",
+                    "caution_note": "This is a potential consideration for review with your doctor, NOT a definitive diagnosis.",
+                })
+            if "creatinine" in ab_lowers or "urea" in ab_lowers:
+                valid_conds.append({
+                    "condition": "Renal Excretory Function Evaluation",
+                    "associated_findings": [a for a in ab_names if a.lower() in ("creatinine", "urea", "b.urea")],
+                    "explanation": "Altered kidney filtration markers suggest discussing renal function and hydration status with your doctor.",
+                    "caution_note": "This is a potential consideration for review with your doctor, NOT a definitive diagnosis.",
+                })
+            if "uric acid" in ab_lowers:
+                valid_conds.append({
+                    "condition": "Hyperuricemia Consideration",
+                    "associated_findings": ["Uric Acid"],
+                    "explanation": "Elevated uric acid levels may warrant discussing dietary purine intake and evaluating risks for gout or kidney stones with a physician.",
+                    "caution_note": "This is a potential consideration for review with your doctor, NOT a definitive diagnosis.",
+                })
+            if not valid_conds:
+                valid_conds.append({
+                    "condition": f"Clinical Review for {', '.join(ab_names[:3])}",
+                    "associated_findings": ab_names,
+                    "explanation": f"The documented measurements for {', '.join(ab_names)} fall outside normal reference limits and warrant physician discussion.",
+                    "caution_note": "This is a potential consideration for review with your doctor, NOT a definitive diagnosis.",
+                })
+
         result["potential_conditions"] = valid_conds
 
-        # Fallback patient alert and summary if empty
         if not result["report_summary"]:
             if final_abnormals:
                 ab_names = ", ".join(a["parameter"] for a in final_abnormals[:4])
-                result["report_summary"] = f"Diagnostic report indicates out-of-range findings for {ab_names}."
+                result["report_summary"] = f"Diagnostic evaluation identified out-of-range parameters for {ab_names}. All other reported tests were within standard reference limits."
             else:
-                result["report_summary"] = "All evaluated diagnostic parameters fall within standard reference intervals."
+                result["report_summary"] = "All evaluated laboratory parameters fall within standard physiological reference intervals."
 
         if not result["patient_alert"]:
             if final_abnormals:
                 ab_names = ", ".join(a["parameter"] for a in final_abnormals[:3])
-                result["patient_alert"] = f"Your lab results showed abnormal levels for {ab_names}. Please discuss these results with your attending physician to evaluate the necessary next steps."
+                result["patient_alert"] = f"Your lab results showed out-of-range values for {ab_names}. Please share these findings with your doctor so they can review them in the context of your overall health and medical history."
             else:
-                result["patient_alert"] = "Your test results are within normal limits. Discuss these findings with your doctor at your next scheduled visit."
+                result["patient_alert"] = "Your test results are within normal reference limits. Review these results with your doctor at your next scheduled visit."
 
         return result
 
@@ -705,10 +861,15 @@ class ExtractionPipeline:
                 page for page in pages
                 if category in _page_categories(page_map_by_number[page.page_number])
             ]
-            # A mapper that finds no categories for a page is not allowed to suppress extraction.
-            for page in pages:
-                if not _page_categories(page_map_by_number[page.page_number]) and page not in selected_pages:
-                    selected_pages.append(page)
+            # Crucial safeguard: Always run patient and investigations on all pages so tests are never dropped by mapper errors
+            if category in {"patient", "investigations"}:
+                for page in pages:
+                    if page not in selected_pages:
+                        selected_pages.append(page)
+            else:
+                for page in pages:
+                    if not _page_categories(page_map_by_number[page.page_number]) and page not in selected_pages:
+                        selected_pages.append(page)
             if selected_pages:
                 records, notes = self._extract_category(category, selected_pages, document_id)
                 extracted_items.extend(records)

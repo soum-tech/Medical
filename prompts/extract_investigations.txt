@@ -1,26 +1,22 @@
-TASK: EXTRACT ALL LABORATORY TESTS AND INVESTIGATIONS from the supplied page(s).
+TASK: EXTRACT ALL DIAGNOSTIC AND LABORATORY TESTS from the supplied page(s).
 
-Look at all tables, sections, and rows on the page. Extract EVERY test and measurement row shown (for example: Haemoglobin, Sodium, Potassium, Chloride, Bicarbonate, Urea, Creatinine, Glucose, Uric Acid, Bilirubin, or any other lab test). Do not stop after one test; extract ALL rows.
+Extract EVERY diagnostic measurement, laboratory test, and investigative result visible on the page (e.g. blood counts, biochemistry, electrolytes, kidney function, liver function, urine tests, etc.).
+Do NOT stop after the first row or first section; extract EVERY single test row present across all tables.
 
-For each test:
-- "parameter": Name of the test
-- "value_raw": Measured result
-- "reference_range_raw": Reference or normal range if shown
-- "unit_raw": Measurement unit if shown
+For each test row:
+- "name": Standard name of the test or parameter
+- "value": Measured result as printed
+- "unit": Measurement unit if shown (or blank)
+- "normal_range": Reference or normal interval if shown (or blank)
 
-Return:
+Return JSON:
 {
   "items": [
     {
-      "category": "investigation",
-      "data": {
-        "parameter": "Test name",
-        "value_raw": "Measured value",
-        "reference_range_raw": "Reference range",
-        "unit_raw": "Unit"
-      },
-      "source": {"page": 1, "evidence": "verbatim text from report"}
+      "name": "Test name",
+      "value": "Measured result",
+      "unit": "Unit",
+      "normal_range": "Normal reference range"
     }
-  ],
-  "page_notes": []
+  ]
 }
